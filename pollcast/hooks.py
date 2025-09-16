@@ -7,6 +7,48 @@ app_license = "mit"
 
 # Apps
 # ------------------
+scheduler_events = {
+	"hourly": [
+		"pollcast.scheduler.hourly_analytics"
+	],
+	"daily": [
+		"pollcast.scheduler.daily_cleanup",
+		"pollcast.scheduler.daily_reports"
+	],
+	"weekly": [
+		"pollcast.scheduler.weekly_maintenance"
+	]
+}
+
+
+user_data_fields = [
+	{
+		"doctype": "{doctype_1}",
+		"filter_by": "{filter_by}",
+		"redact_fields": ["{field_1}", "{field_2}"],
+		"partial": 1,
+	},
+	{
+		"doctype": "{doctype_2}",
+		"filter_by": "{filter_by}",
+		"partial": 1,
+	},
+	{
+		"doctype": "{doctype_3}",
+		"strict": False,
+	},
+	{
+		"doctype": "{doctype_4}"
+	}
+]
+
+
+website_route_rules = [
+	{"from_route": "/poll/<path:poll_id>", "to_route": "poll"},
+	{"from_route": "/survey/<path:survey_id>", "to_route": "survey"},
+	{"from_route": "/engagement/<path:engagement_id>", "to_route": "engagement"},
+]
+
 
 # required_apps = []
 
