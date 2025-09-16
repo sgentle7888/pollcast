@@ -59,7 +59,6 @@
       "label": "Participant Info"
     },
     {
-      "default": "now()",
       "fieldname": "creation_timestamp",
       "fieldtype": "Datetime",
       "label": "Response Time",
