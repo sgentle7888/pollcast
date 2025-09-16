@@ -1,0 +1,101 @@
+{
+  "actions": [],
+  "autoname": "hash",
+  "creation": "2024-01-01 00:00:00.000000",
+  "default_view": "List",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "survey",
+    "survey_question",
+    "column_break_3",
+    "response_value",
+    "participant_ip",
+    "section_break_6",
+    "participant_info",
+    "creation_timestamp"
+  ],
+  "fields": [
+    {
+      "fieldname": "survey",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Survey",
+      "options": "Survey",
+      "reqd": 1
+    },
+    {
+      "fieldname": "survey_question",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Survey Question",
+      "options": "Survey Question",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "response_value",
+      "fieldtype": "Text",
+      "in_list_view": 1,
+      "label": "Response Value",
+      "reqd": 1
+    },
+    {
+      "fieldname": "participant_ip",
+      "fieldtype": "Data",
+      "label": "Participant IP"
+    },
+    {
+      "fieldname": "section_break_6",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "participant_info",
+      "fieldtype": "JSON",
+      "label": "Participant Info"
+    },
+    {
+      "default": "now()",
+      "fieldname": "creation_timestamp",
+      "fieldtype": "Datetime",
+      "label": "Response Time",
+      "read_only": 1
+    }
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Pollcast",
+  "name": "Survey Response",
+  "naming_rule": "Random",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "read": 1,
+      "role": "Poll Manager",
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}
