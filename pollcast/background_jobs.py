@@ -3,7 +3,7 @@ from frappe import _
 from frappe.utils import now_datetime, add_days, get_datetime, cint
 from datetime import datetime, timedelta
 import json
-from .email_reports import send_poll_summary_report, send_survey_summary_report, send_weekly_digest
+from .email_reports import send_poll_report, send_survey_report, send_weekly_digest
 
 def cleanup_old_responses():
     """Clean up old poll and survey responses based on retention settings"""
@@ -99,11 +99,11 @@ def send_scheduled_reports():
                 recipients = json.loads(report.recipients) if report.recipients else []
                 
                 if report.report_type == "Poll Summary" and report.poll:
-                    send_poll_summary_report(report.poll, recipients)
+                    send_poll_report(report.poll, recipients, "summary")
                 elif report.report_type == "Survey Summary" and report.survey:
-                    send_survey_summary_report(report.survey, recipients)
+                    send_survey_report(report.survey, recipients, "summary")
                 elif report.report_type == "Weekly Digest":
-                    send_weekly_digest(recipients)
+                    send_weekly_digest()
                 
                 # Update last sent timestamp
                 frappe.db.set_value("Scheduled Email Report", report.name, "last_sent", now)
