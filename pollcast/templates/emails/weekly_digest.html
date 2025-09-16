@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pollcast Weekly Digest</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #475569;
+            background-color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #7c3aed, #ec4899, #f59e0b);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            margin: 15px 0 0 0;
+            opacity: 0.9;
+            font-size: 18px;
+        }
+        
+        .date-range {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .summary-section {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .summary-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .summary-stat {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #7c3aed;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .top-performer {
+            background: linear-gradient(135deg, #7c3aed, #ec4899);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .top-performer h4 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #e2e8f0;
+        }
+        
+        .section-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .item-card {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 25px;
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .item-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .item-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 15px;
+        }
+        
+        .item-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .stat-badge {
+            background: #7c3aed;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .stat-badge.poll {
+            background: #be123c;
+        }
+        
+        .stat-badge.survey {
+            background: #3b82f6;
+        }
+        
+        .stat-badge.engagement {
+            background: #10b981;
+        }
+        
+        .top-option {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            border-left: 4px solid #be123c;
+        }
+        
+        .top-option-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .top-option-text {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #64748b;
+            padding: 40px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 2px dashed #e2e8f0;
+        }
+        
+        .cta-section {
+            background: linear-gradient(135deg, #1e293b, #475569);
+            color: white;
+            border-radius: 12px;
+            padding: 40px 30px;
+            text-align: center;
+            margin-top: 40px;
+        }
+        
+        .cta-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .cta-description {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 25px;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: #7c3aed;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .cta-button:hover {
+            background: #6d28d9;
+        }
+        
+        .cta-button.secondary {
+            background: transparent;
+            border: 2px solid white;
+        }
+        
+        .cta-button.secondary:hover {
+            background: white;
+            color: #1e293b;
+        }
+        
+        .footer {
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 30px 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .footer a {
+            color: #ec4899;
+            text-decoration: none;
+        }
+        
+        .footer-links {
+            margin-top: 15px;
+        }
+        
+        .footer-links a {
+            margin: 0 10px;
+        }
+        
+        @media (max-width: 600px) {
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .summary-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .items-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .item-stats {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+            }
+            
+            .cta-button {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>📊 Weekly Digest</h1>
+            <p>Your Pollcast activity summary</p>
+            <div class="date-range">
+                {{ digest.week_start.strftime('%B %d') }} - {{ digest.week_end.strftime('%B %d, %Y') }}
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="summary-section">
+                <div class="summary-title">Week at a Glance</div>
+                
+                <div class="summary-stats">
+                    <div class="summary-stat">
+                        <div class="stat-value">{{ digest.summary.total_polls }}</div>
+                        <div class="stat-label">Active Polls</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="stat-value">{{ digest.summary.total_surveys }}</div>
+                        <div class="stat-label">Active Surveys</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="stat-value">{{ digest.summary.total_responses }}</div>
+                        <div class="stat-label">Total Responses</div>
+                    </div>
+                </div>
+                
+                {% if digest.summary.top_performing %}
+                <div class="top-performer">
+                    <h4>🏆 Top Performer</h4>
+                    <div style="font-size: 18px; font-weight: 600;">
+                        {{ digest.summary.top_performing.title }}
+                    </div>
+                    <div style="opacity: 0.9; margin-top: 5px;">
+                        {{ digest.summary.top_performing.type }} • {{ digest.summary.top_performing.responses }} responses
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if digest.polls %}
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">📊</div>
+                    <div class="section-title">Active Polls</div>
+                </div>
+                
+                <div class="items-grid">
+                    {% for poll in digest.polls %}
+                    <div class="item-card">
+                        <div class="item-title">{{ poll.title }}</div>
+                        <div class="item-stats">
+                            <div class="stat-badge poll">{{ poll.total_responses }} responses</div>
+                            <div class="stat-badge engagement">{{ poll.engagement_rate }}% engagement</div>
+                        </div>
+                        
+                        {% if poll.top_option %}
+                        <div class="top-option">
+                            <div class="top-option-label">Leading Option</div>
+                            <div class="top-option-text">
+                                {{ poll.top_option.option }} ({{ poll.top_option.count }} votes)
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if digest.surveys %}
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">📋</div>
+                    <div class="section-title">Active Surveys</div>
+                </div>
+                
+                <div class="items-grid">
+                    {% for survey in digest.surveys %}
+                    <div class="item-card">
+                        <div class="item-title">{{ survey.title }}</div>
+                        <div class="item-stats">
+                            <div class="stat-badge survey">{{ survey.total_responses }} responses</div>
+                            <div class="stat-badge engagement">{{ survey.completion_rate }}% completion</div>
+                        </div>
+                        
+                        <div style="margin-top: 15px; color: #64748b; font-size: 14px;">
+                            {{ survey.question_count }} questions
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if not digest.polls and not digest.surveys %}
+            <div class="no-data">
+                <h3 style="margin-top: 0; color: #475569;">No Active Polls or Surveys</h3>
+                <p>Create your first poll or survey to start collecting valuable insights from your audience.</p>
+            </div>
+            {% endif %}
+            
+            <div class="cta-section">
+                <div class="cta-title">Ready to Dive Deeper?</div>
+                <div class="cta-description">
+                    Explore detailed analytics, create new polls and surveys, and engage with your audience in real-time.
+                </div>
+                <div class="cta-buttons">
+                    <a href="{{ site_url }}/dashboard" class="cta-button">View Dashboard</a>
+                    <a href="{{ site_url }}/polls/new" class="cta-button secondary">Create Poll</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Pollcast</strong> - Polls and Surveys with Real-time Analytics</p>
+            <div class="footer-links">
+                <a href="{{ site_url }}">Home</a>
+                <a href="{{ site_url }}/dashboard">Dashboard</a>
+                <a href="{{ site_url }}/help">Help Center</a>
+            </div>
+            <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+                This digest was automatically generated on {{ generated_at.strftime('%B %d, %Y at %I:%M %p') }}
+            </p>
+        </div>
+    </div>
+</body>
+</html>
