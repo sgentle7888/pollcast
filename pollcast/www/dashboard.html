@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Pollcast</title>
+    <meta name="description" content="Real-time analytics for polls and surveys">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#be123c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Pollcast Dashboard">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css">
+    <link rel="stylesheet" href="/assets/pollcast/css/dashboard.css">
+    
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Date adapter for Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="dashboard-container">
+            <!-- Header -->
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <h1 class="dashboard-title">Analytics Dashboard</h1>
+                    <div class="header-controls">
+                        <!-- Connection Status -->
+                        <div class="connection-indicator" :class="connectionStatus">
+                            <div class="status-dot"></div>
+                            <span>{{ connectionStatusText }}</span>
+                        </div>
+                        
+                        <!-- Auto-refresh Toggle -->
+                        <button @click="toggleAutoRefresh" class="refresh-toggle" :class="{ active: autoRefresh }">
+                            <span class="refresh-icon">🔄</span>
+                            Auto-refresh
+                        </button>
+                        
+                        <!-- Export Button -->
+                        <button @click="exportData" class="export-btn">
+                            <span class="export-icon">📊</span>
+                            Export
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Loading State -->
+            <div v-if="loading" class="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Loading analytics data...</p>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div v-else class="dashboard-content">
+                <!-- Summary Cards -->
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="card-icon polls-icon">📊</div>
+                        <div class="card-content">
+                            <h3>Active Polls</h3>
+                            <div class="card-value">{{ summaryData.activePolls }}</div>
+                            <div class="card-change positive" v-if="summaryData.pollsChange > 0">
+                                +{{ summaryData.pollsChange }} this week
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="card-icon surveys-icon">📋</div>
+                        <div class="card-content">
+                            <h3>Active Surveys</h3>
+                            <div class="card-value">{{ summaryData.activeSurveys }}</div>
+                            <div class="card-change positive" v-if="summaryData.surveysChange > 0">
+                                +{{ summaryData.surveysChange }} this week
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="card-icon responses-icon">👥</div>
+                        <div class="card-content">
+                            <h3>Total Responses</h3>
+                            <div class="card-value">{{ summaryData.totalResponses.toLocaleString() }}</div>
+                            <div class="card-change positive" v-if="summaryData.responsesChange > 0">
+                                +{{ summaryData.responsesChange }} today
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="card-icon engagement-icon">📈</div>
+                        <div class="card-content">
+                            <h3>Engagement Rate</h3>
+                            <div class="card-value">{{ summaryData.engagementRate }}%</div>
+                            <div class="card-change" :class="summaryData.engagementTrend > 0 ? 'positive' : 'negative'">
+                                {{ summaryData.engagementTrend > 0 ? '+' : '' }}{{ summaryData.engagementTrend }}% vs last week
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-grid">
+                    <!-- Response Timeline Chart -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>Response Timeline</h3>
+                            <div class="chart-controls">
+                                <select v-model="timelineRange" @change="updateTimelineChart" class="range-selector">
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d">Last 30 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas ref="timelineChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top Performing Polls -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>Top Performing Polls</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas ref="topPollsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Analytics -->
+                <div class="detailed-analytics">
+                    <!-- Polls Analytics -->
+                    <div class="analytics-section">
+                        <div class="section-header">
+                            <h3>Poll Analytics</h3>
+                            <button @click="refreshPollData" class="refresh-btn" :disabled="refreshing">
+                                <span class="refresh-icon" :class="{ spinning: refreshing }">🔄</span>
+                                Refresh
+                            </button>
+                        </div>
+                        
+                        <div class="polls-list">
+                            <div v-for="poll in pollsData" :key="poll.name" class="poll-analytics-card">
+                                <div class="poll-header">
+                                    <h4>{{ poll.title }}</h4>
+                                    <div class="poll-stats">
+                                        <span class="stat">{{ poll.total_responses }} responses</span>
+                                        <span class="stat">{{ poll.engagement_rate }}% engagement</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="poll-chart-container">
+                                    <canvas :ref="'pollChart_' + poll.name" width="300" height="150"></canvas>
+                                </div>
+                                
+                                <div class="poll-options-breakdown">
+                                    <div v-for="option in poll.options" :key="option.option" class="option-breakdown">
+                                        <div class="option-label">{{ option.option }}</div>
+                                        <div class="option-bar">
+                                            <div class="option-fill" :style="{ width: option.percentage + '%' }"></div>
+                                        </div>
+                                        <div class="option-stats">
+                                            <span>{{ option.count }} votes</span>
+                                            <span>{{ option.percentage }}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Surveys Analytics -->
+                    <div class="analytics-section">
+                        <div class="section-header">
+                            <h3>Survey Analytics</h3>
+                            <button @click="refreshSurveyData" class="refresh-btn" :disabled="refreshing">
+                                <span class="refresh-icon" :class="{ spinning: refreshing }">🔄</span>
+                                Refresh
+                            </button>
+                        </div>
+                        
+                        <div class="surveys-list">
+                            <div v-for="survey in surveysData" :key="survey.name" class="survey-analytics-card">
+                                <div class="survey-header">
+                                    <h4>{{ survey.title }}</h4>
+                                    <div class="survey-stats">
+                                        <span class="stat">{{ survey.total_responses }} responses</span>
+                                        <span class="stat">{{ survey.completion_rate }}% completion</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="survey-questions">
+                                    <div v-for="question in survey.questions.slice(0, 3)" :key="question.question" class="question-summary">
+                                        <div class="question-text">{{ question.question }}</div>
+                                        <div class="question-type">{{ question.type }}</div>
+                                        
+                                        <!-- Multiple Choice/Checkbox Visualization -->
+                                        <div v-if="question.type === 'Multiple Choice' || question.type === 'Checkbox'" class="question-chart">
+                                            <div v-for="(count, option) in question.option_counts" :key="option" class="option-bar-small">
+                                                <span class="option-name">{{ option }}</span>
+                                                <div class="bar-container">
+                                                    <div class="bar-fill" :style="{ width: (count / question.total_responses * 100) + '%' }"></div>
+                                                </div>
+                                                <span class="option-count">{{ count }}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Rating Scale Visualization -->
+                                        <div v-else-if="question.type === 'Rating Scale'" class="rating-summary">
+                                            <div class="average-rating">
+                                                Average: <strong>{{ question.average_rating }}/5</strong>
+                                            </div>
+                                            <div class="rating-distribution">
+                                                <div v-for="(count, rating) in question.ratings_distribution" :key="rating" class="rating-bar">
+                                                    <span>{{ rating }}★</span>
+                                                    <div class="bar-fill" :style="{ width: (count / question.total_responses * 100) + '%' }"></div>
+                                                    <span>{{ count }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Text Input Summary -->
+                                        <div v-else-if="question.type === 'Text Input'" class="text-summary">
+                                            <div class="response-count">{{ question.total_responses }} text responses</div>
+                                            <div class="sample-responses">
+                                                <div v-for="response in question.responses.slice(0, 2)" :key="response" class="sample-response">
+                                                    "{{ response.length > 100 ? response.substring(0, 100) + '...' : response }}"
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div v-if="survey.questions.length > 3" class="more-questions">
+                                        +{{ survey.questions.length - 3 }} more questions
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Modal -->
+            <div v-if="showExportModal" class="modal-overlay" @click="closeExportModal">
+                <div class="export-modal" @click.stop>
+                    <div class="modal-header">
+                        <h3>Export Analytics Data</h3>
+                        <button @click="closeExportModal" class="close-btn">×</button>
+                    </div>
+                    
+                    <div class="modal-content">
+                        <div class="export-options">
+                            <label class="export-option">
+                                <input type="checkbox" v-model="exportOptions.polls"> Poll Data
+                            </label>
+                            <label class="export-option">
+                                <input type="checkbox" v-model="exportOptions.surveys"> Survey Data
+                            </label>
+                            <label class="export-option">
+                                <input type="checkbox" v-model="exportOptions.responses"> Response Details
+                            </label>
+                            <label class="export-option">
+                                <input type="checkbox" v-model="exportOptions.analytics"> Analytics Summary
+                            </label>
+                        </div>
+                        
+                        <div class="export-format">
+                            <label>Format:</label>
+                            <select v-model="exportFormat">
+                                <option value="csv">CSV</option>
+                                <option value="excel">Excel</option>
+                                <option value="pdf">PDF Report</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button @click="closeExportModal" class="cancel-btn">Cancel</button>
+                        <button @click="performExport" class="export-confirm-btn" :disabled="exporting">
+                            <span v-if="exporting" class="loading-spinner small"></span>
+                            {{ exporting ? 'Exporting...' : 'Export' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    loading: true,
+                    refreshing: false,
+                    autoRefresh: true,
+                    connectionStatus: 'connected',
+                    timelineRange: '7d',
+                    summaryData: {
+                        activePolls: 0,
+                        activeSurveys: 0,
+                        totalResponses: 0,
+                        engagementRate: 0,
+                        pollsChange: 0,
+                        surveysChange: 0,
+                        responsesChange: 0,
+                        engagementTrend: 0
+                    },
+                    pollsData: [],
+                    surveysData: [],
+                    charts: {},
+                    refreshInterval: null,
+                    sseConnection: null,
+                    showExportModal: false,
+                    exportOptions: {
+                        polls: true,
+                        surveys: true,
+                        responses: false,
+                        analytics: true
+                    },
+                    exportFormat: 'csv',
+                    exporting: false
+                }
+            },
+            computed: {
+                connectionStatusText() {
+                    const statusMap = {
+                        'connected': 'Live Updates',
+                        'fallback': 'Auto Refresh (5s)',
+                        'disconnected': 'Offline'
+                    };
+                    return statusMap[this.connectionStatus] || 'Unknown';
+                }
+            },
+            mounted() {
+                this.initializeDashboard();
+                this.setupAutoRefresh();
+                this.setupSSE();
+            },
+            beforeUnmount() {
+                this.cleanup();
+            },
+            methods: {
+                async initializeDashboard() {
+                    try {
+                        await Promise.all([
+                            this.loadSummaryData(),
+                            this.loadPollsData(),
+                            this.loadSurveysData()
+                        ]);
+                        
+                        this.$nextTick(() => {
+                            this.initializeCharts();
+                        });
+                    } catch (error) {
+                        console.error('Dashboard initialization error:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadSummaryData() {
+                    try {
+                        const response = await fetch('/api/method/pollcast.api.get_dashboard_summary');
+                        const data = await response.json();
+                        
+                        if (data.message) {
+                            this.summaryData = { ...this.summaryData, ...data.message };
+                        }
+                    } catch (error) {
+                        console.error('Summary data loading error:', error);
+                    }
+                },
+                
+                async loadPollsData() {
+                    try {
+                        const response = await fetch('/api/method/pollcast.api.get_polls_analytics');
+                        const data = await response.json();
+                        
+                        if (data.message) {
+                            this.pollsData = data.message;
+                        }
+                    } catch (error) {
+                        console.error('Polls data loading error:', error);
+                    }
+                },
+                
+                async loadSurveysData() {
+                    try {
+                        const response = await fetch('/api/method/pollcast.api.get_surveys_analytics');
+                        const data = await response.json();
+                        
+                        if (data.message) {
+                            this.surveysData = data.message;
+                        }
+                    } catch (error) {
+                        console.error('Surveys data loading error:', error);
+                    }
+                },
+                
+                initializeCharts() {
+                    this.createTimelineChart();
+                    this.createTopPollsChart();
+                    this.createPollCharts();
+                },
+                
+                createTimelineChart() {
+                    const ctx = this.$refs.timelineChart.getContext('2d');
+                    
+                    // Generate sample timeline data
+                    const timelineData = this.generateTimelineData();
+                    
+                    this.charts.timeline = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: timelineData.labels,
+                            datasets: [{
+                                label: 'Responses',
+                                data: timelineData.data,
+                                borderColor: '#be123c',
+                                backgroundColor: 'rgba(190, 18, 60, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: this.timelineRange === '24h' ? 'hour' : 'day'
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                createTopPollsChart() {
+                    const ctx = this.$refs.topPollsChart.getContext('2d');
+                    
+                    const topPolls = this.pollsData.slice(0, 5);
+                    
+                    this.charts.topPolls = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: topPolls.map(poll => poll.title.length > 20 ? poll.title.substring(0, 20) + '...' : poll.title),
+                            datasets: [{
+                                label: 'Responses',
+                                data: topPolls.map(poll => poll.total_responses),
+                                backgroundColor: [
+                                    '#be123c',
+                                    '#ec4899',
+                                    '#f472b6',
+                                    '#f9a8d4',
+                                    '#fce7f3'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                createPollCharts() {
+                    this.pollsData.forEach(poll => {
+                        this.$nextTick(() => {
+                            const chartRef = this.$refs['pollChart_' + poll.name];
+                            if (chartRef && chartRef[0]) {
+                                const ctx = chartRef[0].getContext('2d');
+                                
+                                this.charts['poll_' + poll.name] = new Chart(ctx, {
+                                    type: 'doughnut',
+                                    data: {
+                                        labels: poll.options.map(opt => opt.option),
+                                        datasets: [{
+                                            data: poll.options.map(opt => opt.count),
+                                            backgroundColor: [
+                                                '#be123c',
+                                                '#ec4899',
+                                                '#f472b6',
+                                                '#f9a8d4',
+                                                '#fce7f3'
+                                            ]
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: {
+                                            legend: {
+                                                position: 'bottom',
+                                                labels: {
+                                                    boxWidth: 12,
+                                                    font: {
+                                                        size: 11
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    });
+                },
+                
+                generateTimelineData() {
+                    const now = new Date();
+                    const labels = [];
+                    const data = [];
+                    
+                    let points, interval;
+                    
+                    if (this.timelineRange === '24h') {
+                        points = 24;
+                        interval = 60 * 60 * 1000; // 1 hour
+                    } else if (this.timelineRange === '7d') {
+                        points = 7;
+                        interval = 24 * 60 * 60 * 1000; // 1 day
+                    } else {
+                        points = 30;
+                        interval = 24 * 60 * 60 * 1000; // 1 day
+                    }
+                    
+                    for (let i = points - 1; i >= 0; i--) {
+                        const date = new Date(now.getTime() - (i * interval));
+                        labels.push(date);
+                        data.push(Math.floor(Math.random() * 50) + 10); // Sample data
+                    }
+                    
+                    return { labels, data };
+                },
+                
+                updateTimelineChart() {
+                    if (this.charts.timeline) {
+                        const timelineData = this.generateTimelineData();
+                        this.charts.timeline.data.labels = timelineData.labels;
+                        this.charts.timeline.data.datasets[0].data = timelineData.data;
+                        this.charts.timeline.options.scales.x.time.unit = this.timelineRange === '24h' ? 'hour' : 'day';
+                        this.charts.timeline.update();
+                    }
+                },
+                
+                setupAutoRefresh() {
+                    if (this.autoRefresh) {
+                        this.refreshInterval = setInterval(() => {
+                            if (this.connectionStatus === 'fallback') {
+                                this.refreshData();
+                            }
+                        }, 5000);
+                    }
+                },
+                
+                toggleAutoRefresh() {
+                    this.autoRefresh = !this.autoRefresh;
+                    
+                    if (this.autoRefresh) {
+                        this.setupAutoRefresh();
+                    } else {
+                        if (this.refreshInterval) {
+                            clearInterval(this.refreshInterval);
+                            this.refreshInterval = null;
+                        }
+                    }
+                },
+                
+                setupSSE() {
+                    try {
+                        this.sseConnection = new EventSource('/api/method/pollcast.api.sse_analytics');
+                        
+                        this.sseConnection.onopen = () => {
+                            this.connectionStatus = 'connected';
+                        };
+                        
+                        this.sseConnection.onmessage = (event) => {
+                            const data = JSON.parse(event.data);
+                            this.handleRealTimeUpdate(data);
+                        };
+                        
+                        this.sseConnection.onerror = () => {
+                            this.connectionStatus = 'fallback';
+                            this.setupAutoRefresh();
+                        };
+                    } catch (error) {
+                        console.error('SSE setup error:', error);
+                        this.connectionStatus = 'fallback';
+                        this.setupAutoRefresh();
+                    }
+                },
+                
+                handleRealTimeUpdate(data) {
+                    if (data.type === 'poll_response') {
+                        this.updatePollData(data.poll_name, data.analytics);
+                    } else if (data.type === 'survey_response') {
+                        this.updateSurveyData(data.survey_name, data.analytics);
+                    } else if (data.type === 'summary_update') {
+                        this.summaryData = { ...this.summaryData, ...data.summary };
+                    }
+                },
+                
+                updatePollData(pollName, analytics) {
+                    const pollIndex = this.pollsData.findIndex(poll => poll.name === pollName);
+                    if (pollIndex !== -1) {
+                        this.pollsData[pollIndex] = { ...this.pollsData[pollIndex], ...analytics };
+                        
+                        // Update chart
+                        const chart = this.charts['poll_' + pollName];
+                        if (chart) {
+                            chart.data.datasets[0].data = analytics.options.map(opt => opt.count);
+                            chart.update();
+                        }
+                    }
+                },
+                
+                updateSurveyData(surveyName, analytics) {
+                    const surveyIndex = this.surveysData.findIndex(survey => survey.name === surveyName);
+                    if (surveyIndex !== -1) {
+                        this.surveysData[surveyIndex] = { ...this.surveysData[surveyIndex], ...analytics };
+                    }
+                },
+                
+                async refreshData() {
+                    this.refreshing = true;
+                    try {
+                        await Promise.all([
+                            this.loadSummaryData(),
+                            this.loadPollsData(),
+                            this.loadSurveysData()
+                        ]);
+                        
+                        // Update charts
+                        this.updateTimelineChart();
+                        if (this.charts.topPolls) {
+                            const topPolls = this.pollsData.slice(0, 5);
+                            this.charts.topPolls.data.labels = topPolls.map(poll => poll.title.length > 20 ? poll.title.substring(0, 20) + '...' : poll.title);
+                            this.charts.topPolls.data.datasets[0].data = topPolls.map(poll => poll.total_responses);
+                            this.charts.topPolls.update();
+                        }
+                    } catch (error) {
+                        console.error('Data refresh error:', error);
+                    } finally {
+                        this.refreshing = false;
+                    }
+                },
+                
+                async refreshPollData() {
+                    this.refreshing = true;
+                    try {
+                        await this.loadPollsData();
+                    } finally {
+                        this.refreshing = false;
+                    }
+                },
+                
+                async refreshSurveyData() {
+                    this.refreshing = true;
+                    try {
+                        await this.loadSurveysData();
+                    } finally {
+                        this.refreshing = false;
+                    }
+                },
+                
+                exportData() {
+                    this.showExportModal = true;
+                },
+                
+                closeExportModal() {
+                    this.showExportModal = false;
+                },
+                
+                async performExport() {
+                    this.exporting = true;
+                    
+                    try {
+                        const response = await fetch('/api/method/pollcast.api.export_analytics', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                options: this.exportOptions,
+                                format: this.exportFormat
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `pollcast_analytics_${new Date().toISOString().split('T')[0]}.${this.exportFormat}`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            
+                            this.closeExportModal();
+                        } else {
+                            throw new Error('Export failed');
+                        }
+                    } catch (error) {
+                        console.error('Export error:', error);
+                        alert('Export failed. Please try again.');
+                    } finally {
+                        this.exporting = false;
+                    }
+                },
+                
+                cleanup() {
+                    if (this.refreshInterval) {
+                        clearInterval(this.refreshInterval);
+                    }
+                    
+                    if (this.sseConnection) {
+                        this.sseConnection.close();
+                    }
+                    
+                    // Destroy charts
+                    Object.values(this.charts).forEach(chart => {
+                        if (chart && typeof chart.destroy === 'function') {
+                            chart.destroy();
+                        }
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

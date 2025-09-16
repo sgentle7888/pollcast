@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ survey.title if survey else 'Survey' }} - Pollcast</title>
+    <meta name="description" content="{{ survey.description if survey else 'Participate in this survey' }}">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#be123c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Pollcast">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/assets/pollcast/images/favicon.ico">
+    <link rel="apple-touch-icon" href="/assets/pollcast/images/apple-touch-icon.png">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="/assets/pollcast/manifest.json">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css">
+    
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="pollcast-container">
+            <!-- Connection Status Indicator -->
+            <div class="connection-status" :class="connectionStatus" v-if="showConnectionStatus">
+                {{ connectionStatusText }}
+            </div>
+            
+            <!-- Survey Interface -->
+            <div v-if="!loading && survey && !submitted">
+                <div class="poll-card">
+                    <h1 class="poll-title">{{ survey.title }}</h1>
+                    <div class="poll-description" v-if="survey.description" v-html="survey.description"></div>
+                    
+                    <!-- Progress Bar for Multi-page Surveys -->
+                    <div v-if="survey.multi_page && totalPages > 1" class="progress-bar">
+                        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
+                    </div>
+                    <div v-if="survey.multi_page && totalPages > 1" style="text-align: center; margin-bottom: 1rem; color: var(--muted-foreground);">
+                        Page {{ currentPage }} of {{ totalPages }}
+                    </div>
+                    
+                    <form @submit.prevent="handleSubmit">
+                        <!-- Current Page Questions -->
+                        <div v-for="question in currentPageQuestions" :key="question.name" class="survey-question">
+                            <div class="question-title">
+                                {{ question.text }}
+                                <span v-if="question.required" class="question-required">*</span>
+                            </div>
+                            
+                            <!-- Multiple Choice -->
+                            <div v-if="question.type === 'Multiple Choice'">
+                                <div v-for="option in question.options" :key="option" class="poll-option"
+                                     :class="{ selected: responses[question.name] === option }"
+                                     @click="selectSingleOption(question.name, option)">
+                                    <input type="radio" 
+                                           :name="question.name" 
+                                           :value="option"
+                                           v-model="responses[question.name]"
+                                           :id="question.name + '_' + option">
+                                    <label :for="question.name + '_' + option">{{ option }}</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Checkbox -->
+                            <div v-if="question.type === 'Checkbox'">
+                                <div v-for="option in question.options" :key="option" class="poll-option"
+                                     :class="{ selected: isCheckboxSelected(question.name, option) }"
+                                     @click="toggleCheckboxOption(question.name, option)">
+                                    <input type="checkbox" 
+                                           :value="option"
+                                           v-model="responses[question.name]"
+                                           :id="question.name + '_' + option">
+                                    <label :for="question.name + '_' + option">{{ option }}</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Rating Scale -->
+                            <div v-if="question.type === 'Rating Scale'" class="rating-scale">
+                                <div v-for="rating in getRatingRange(question)" :key="rating" 
+                                     class="rating-option"
+                                     :class="{ selected: responses[question.name] == rating }"
+                                     @click="responses[question.name] = rating">
+                                    <div class="rating-number">{{ rating }}</div>
+                                    <div class="rating-label" v-if="rating == question.scale_min">Poor</div>
+                                    <div class="rating-label" v-else-if="rating == question.scale_max">Excellent</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Text Input -->
+                            <div v-if="question.type === 'Text Input'">
+                                <textarea v-model="responses[question.name]" 
+                                         class="text-input" 
+                                         :placeholder="'Enter your response...'"
+                                         rows="4"
+                                         :required="question.required"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Navigation Buttons -->
+                        <div class="page-navigation">
+                            <button v-if="currentPage > 1" 
+                                    type="button" 
+                                    @click="previousPage" 
+                                    class="nav-btn">
+                                Previous
+                            </button>
+                            <div v-else></div>
+                            
+                            <button v-if="currentPage < totalPages" 
+                                    type="button" 
+                                    @click="nextPage" 
+                                    class="nav-btn primary"
+                                    :disabled="!canProceed">
+                                Next
+                            </button>
+                            <button v-else 
+                                    type="submit" 
+                                    class="nav-btn primary"
+                                    :disabled="!canSubmit || submitting">
+                                <span v-if="submitting" class="loading-spinner"></span>
+                                {{ submitting ? 'Submitting...' : 'Submit Survey' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Loading State -->
+            <div v-if="loading" class="poll-card">
+                <div style="text-align: center; padding: 2rem;">
+                    <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+                    <p>Loading survey...</p>
+                </div>
+            </div>
+            
+            <!-- Success State -->
+            <div v-if="submitted" class="poll-card">
+                <div class="success-message">
+                    <h2 style="margin: 0 0 0.5rem 0;">Thank you for your participation!</h2>
+                    <p style="margin: 0;">Your survey response has been recorded successfully.</p>
+                </div>
+                <button @click="viewResults" class="submit-btn" style="margin-top: 1rem;">
+                    View Results
+                </button>
+            </div>
+            
+            <!-- Error State -->
+            <div v-if="error" class="error-message">
+                {{ error }}
+                <button @click="retryLoad" class="submit-btn" style="margin-top: 1rem; background: var(--background); color: var(--foreground); border: 2px solid var(--border);">
+                    Try Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    survey: null,
+                    responses: {},
+                    currentPage: 1,
+                    loading: true,
+                    submitting: false,
+                    submitted: false,
+                    error: null,
+                    connectionStatus: 'connected',
+                    showConnectionStatus: false,
+                    surveyId: null
+                }
+            },
+            computed: {
+                connectionStatusText() {
+                    const statusMap = {
+                        'connected': 'Live Updates',
+                        'fallback': 'Auto Refresh',
+                        'disconnected': 'Offline'
+                    };
+                    return statusMap[this.connectionStatus] || 'Unknown';
+                },
+                
+                totalPages() {
+                    if (!this.survey || !this.survey.multi_page) return 1;
+                    const pages = new Set(this.survey.questions.map(q => q.page_number || 1));
+                    return Math.max(...pages);
+                },
+                
+                currentPageQuestions() {
+                    if (!this.survey) return [];
+                    if (!this.survey.multi_page) return this.survey.questions;
+                    return this.survey.questions.filter(q => (q.page_number || 1) === this.currentPage);
+                },
+                
+                progressPercentage() {
+                    return (this.currentPage / this.totalPages) * 100;
+                },
+                
+                canProceed() {
+                    // Check if all required questions on current page are answered
+                    return this.currentPageQuestions.every(q => {
+                        if (!q.required) return true;
+                        const response = this.responses[q.name];
+                        if (q.type === 'Checkbox') {
+                            return response && response.length > 0;
+                        }
+                        return response !== undefined && response !== null && response !== '';
+                    });
+                },
+                
+                canSubmit() {
+                    // Check if all required questions in survey are answered
+                    return this.survey.questions.every(q => {
+                        if (!q.required) return true;
+                        const response = this.responses[q.name];
+                        if (q.type === 'Checkbox') {
+                            return response && response.length > 0;
+                        }
+                        return response !== undefined && response !== null && response !== '';
+                    });
+                }
+            },
+            mounted() {
+                this.surveyId = this.getSurveyIdFromUrl();
+                this.loadSurvey();
+                this.setupConnectionMonitoring();
+            },
+            methods: {
+                getSurveyIdFromUrl() {
+                    const path = window.location.pathname;
+                    const matches = path.match(/\/survey\/([^\/]+)/);
+                    return matches ? matches[1] : null;
+                },
+                
+                async loadSurvey() {
+                    if (!this.surveyId) {
+                        this.error = 'Invalid survey URL';
+                        this.loading = false;
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/method/pollcast.pollcast.doctype.survey.survey.get_survey_data?survey_id=${this.surveyId}`);
+                        const data = await response.json();
+                        
+                        if (data.message && data.message.error) {
+                            this.error = data.message.error;
+                        } else if (data.message && data.message.survey) {
+                            this.survey = data.message.survey;
+                            this.initializeResponses();
+                        } else {
+                            this.error = 'Failed to load survey data';
+                        }
+                    } catch (err) {
+                        this.error = 'Network error. Please check your connection.';
+                        console.error('Survey loading error:', err);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                initializeResponses() {
+                    // Initialize response object for all questions
+                    this.survey.questions.forEach(question => {
+                        if (question.type === 'Checkbox') {
+                            this.responses[question.name] = [];
+                        } else {
+                            this.responses[question.name] = '';
+                        }
+                    });
+                },
+                
+                selectSingleOption(questionName, option) {
+                    this.responses[questionName] = option;
+                },
+                
+                isCheckboxSelected(questionName, option) {
+                    return this.responses[questionName] && this.responses[questionName].includes(option);
+                },
+                
+                toggleCheckboxOption(questionName, option) {
+                    if (!this.responses[questionName]) {
+                        this.responses[questionName] = [];
+                    }
+                    
+                    const index = this.responses[questionName].indexOf(option);
+                    if (index > -1) {
+                        this.responses[questionName].splice(index, 1);
+                    } else {
+                        this.responses[questionName].push(option);
+                    }
+                },
+                
+                getRatingRange(question) {
+                    const min = question.scale_min || 1;
+                    const max = question.scale_max || 5;
+                    return Array.from({ length: max - min + 1 }, (_, i) => min + i);
+                },
+                
+                nextPage() {
+                    if (this.canProceed && this.currentPage < this.totalPages) {
+                        this.currentPage++;
+                    }
+                },
+                
+                previousPage() {
+                    if (this.currentPage > 1) {
+                        this.currentPage--;
+                    }
+                },
+                
+                handleSubmit() {
+                    if (this.currentPage < this.totalPages) {
+                        this.nextPage();
+                    } else {
+                        this.submitSurvey();
+                    }
+                },
+                
+                async submitSurvey() {
+                    if (!this.canSubmit) return;
+                    
+                    this.submitting = true;
+                    
+                    try {
+                        const response = await fetch('/api/method/pollcast.pollcast.doctype.survey.survey.submit_survey_response', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                survey_id: this.surveyId,
+                                responses: this.responses,
+                                participant_info: {
+                                    user_agent: navigator.userAgent,
+                                    timestamp: new Date().toISOString()
+                                }
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.message && data.message.success) {
+                            this.submitted = true;
+                            this.showNotification('Survey submitted successfully!', 'success');
+                        } else {
+                            this.error = data.message?.error || 'Failed to submit survey';
+                        }
+                    } catch (err) {
+                        this.error = 'Network error. Please try again.';
+                        console.error('Survey submission error:', err);
+                    } finally {
+                        this.submitting = false;
+                    }
+                },
+                
+                viewResults() {
+                    window.location.href = `/survey/${this.surveyId}/results`;
+                },
+                
+                retryLoad() {
+                    this.error = null;
+                    this.loading = true;
+                    this.loadSurvey();
+                },
+                
+                setupConnectionMonitoring() {
+                    window.addEventListener('online', () => {
+                        this.connectionStatus = 'connected';
+                        this.showConnectionStatus = true;
+                        setTimeout(() => this.showConnectionStatus = false, 3000);
+                    });
+                    
+                    window.addEventListener('offline', () => {
+                        this.connectionStatus = 'disconnected';
+                        this.showConnectionStatus = true;
+                    });
+                },
+                
+                showNotification(message, type = 'info') {
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('Pollcast', {
+                            body: message,
+                            icon: '/assets/pollcast/images/icon-192.png'
+                        });
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
