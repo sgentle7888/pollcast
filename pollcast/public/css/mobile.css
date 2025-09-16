@@ -1,0 +1,238 @@
+/* Mobile-specific styles and PWA enhancements */
+
+/* Install prompt styles */
+.install-prompt {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background: #be123c;
+  color: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: none;
+}
+
+.install-prompt-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.install-prompt button {
+  background: white;
+  color: #be123c;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Connection status indicator */
+.connection-status {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.connection-status.online {
+  background: #10b981;
+  color: white;
+}
+
+.connection-status.offline {
+  background: #ef4444;
+  color: white;
+}
+
+/* Update notification */
+.update-notification {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #3b82f6;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  z-index: 1001;
+}
+
+.update-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.update-notification button {
+  background: white;
+  color: #3b82f6;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Mobile-optimized form controls */
+@media (max-width: 768px) {
+  .poll-option,
+  .survey-question {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .poll-option input[type="radio"],
+  .poll-option input[type="checkbox"] {
+    transform: scale(1.2);
+    margin-right: 0.75rem;
+  }
+
+  .survey-question input[type="text"],
+  .survey-question textarea,
+  .survey-question select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+  }
+
+  .submit-button {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+    margin-top: 1rem;
+  }
+
+  /* Touch-friendly navigation */
+  .nav-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.75rem 1rem;
+  }
+
+  /* Improved readability */
+  .poll-title,
+  .survey-title {
+    font-size: 1.5rem;
+    line-height: 1.4;
+    margin-bottom: 1rem;
+  }
+
+  .poll-description,
+  .survey-description {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .poll-container,
+  .survey-container {
+    padding: 1rem;
+  }
+
+  .poll-header,
+  .survey-header {
+    margin-bottom: 1rem;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .poll-option-icon,
+  .survey-question-icon {
+    background-size: contain;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .poll-container,
+  .survey-container {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+
+  .poll-option,
+  .survey-question {
+    background: #374151;
+    border-color: #4b5563;
+  }
+
+  .poll-option:hover,
+  .survey-question:hover {
+    background: #4b5563;
+  }
+
+  .submit-button {
+    background: #be123c;
+    color: white;
+  }
+
+  .connection-status.offline {
+    background: #dc2626;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .poll-option,
+  .survey-question,
+  .submit-button {
+    transition: none;
+  }
+
+  .connection-status {
+    transition: none;
+  }
+}
+
+/* Focus indicators for accessibility */
+.poll-option:focus-within,
+.survey-question:focus-within {
+  outline: 2px solid #be123c;
+  outline-offset: 2px;
+}
+
+/* Loading states */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f4f6;
+  border-radius: 50%;
+  border-top-color: #be123c;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Offline indicator */
+.offline-badge {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #6b7280;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  z-index: 1000;
+}
