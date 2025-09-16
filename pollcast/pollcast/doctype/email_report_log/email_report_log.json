@@ -1,0 +1,93 @@
+{
+  "actions": [],
+  "autoname": "hash",
+  "creation": "2024-01-01 00:00:00.000000",
+  "default_view": "List",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "report_type",
+    "document_name",
+    "column_break_3",
+    "status",
+    "sent_at",
+    "section_break_6",
+    "recipients",
+    "error_message"
+  ],
+  "fields": [
+    {
+      "fieldname": "report_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Report Type",
+      "options": "Poll Report\nSurvey Report\nWeekly Digest\nMonthly Summary",
+      "reqd": 1
+    },
+    {
+      "fieldname": "document_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Document Name"
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Status",
+      "options": "Sent\nFailed\nPending",
+      "reqd": 1
+    },
+    {
+      "fieldname": "sent_at",
+      "fieldtype": "Datetime",
+      "in_list_view": 1,
+      "label": "Sent At"
+    },
+    {
+      "fieldname": "section_break_6",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "recipients",
+      "fieldtype": "JSON",
+      "label": "Recipients"
+    },
+    {
+      "fieldname": "error_message",
+      "fieldtype": "Text",
+      "label": "Error Message"
+    }
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Pollcast",
+  "name": "Email Report Log",
+  "naming_rule": "Random",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}

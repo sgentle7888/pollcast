@@ -1,0 +1,133 @@
+{
+  "actions": [],
+  "autoname": "hash",
+  "creation": "2024-01-01 00:00:00.000000",
+  "default_view": "List",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "document_type",
+    "document_name",
+    "column_break_3",
+    "enabled",
+    "frequency",
+    "section_break_6",
+    "report_type",
+    "next_send_date",
+    "column_break_9",
+    "last_sent_date",
+    "section_break_12",
+    "recipients"
+  ],
+  "fields": [
+    {
+      "fieldname": "document_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Document Type",
+      "options": "Poll\nSurvey",
+      "reqd": 1
+    },
+    {
+      "fieldname": "document_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Document Name",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": 1,
+      "fieldname": "enabled",
+      "fieldtype": "Check",
+      "in_list_view": 1,
+      "label": "Enabled"
+    },
+    {
+      "fieldname": "frequency",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Frequency",
+      "options": "daily\nweekly\nmonthly",
+      "reqd": 1
+    },
+    {
+      "fieldname": "section_break_6",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "report_type",
+      "fieldtype": "Select",
+      "label": "Report Type",
+      "options": "summary\ndetailed",
+      "reqd": 1
+    },
+    {
+      "fieldname": "next_send_date",
+      "fieldtype": "Datetime",
+      "label": "Next Send Date"
+    },
+    {
+      "fieldname": "column_break_9",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "last_sent_date",
+      "fieldtype": "Datetime",
+      "label": "Last Sent Date",
+      "read_only": 1
+    },
+    {
+      "fieldname": "section_break_12",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "recipients",
+      "fieldtype": "JSON",
+      "label": "Recipients",
+      "reqd": 1
+    }
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Pollcast",
+  "name": "Scheduled Email Report",
+  "naming_rule": "Random",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Poll Manager",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}
