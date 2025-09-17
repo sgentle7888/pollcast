@@ -13,7 +13,6 @@
     "description",
     "column_break_4",
     "status",
-    "allow_multiple",
     "section_break_7",
     "start_date",
     "end_date",
@@ -21,7 +20,7 @@
     "shareable_link",
     "total_responses",
     "section_break_13",
-    "options"
+    "questions"
   ],
   "fields": [
     {
@@ -57,12 +56,6 @@
       "reqd": 1
     },
     {
-      "default": 0,
-      "fieldname": "allow_multiple",
-      "fieldtype": "Check",
-      "label": "Allow Multiple Selections"
-    },
-    {
       "fieldname": "section_break_7",
       "fieldtype": "Section Break"
     },
@@ -96,13 +89,13 @@
     {
       "fieldname": "section_break_13",
       "fieldtype": "Section Break",
-      "label": "Poll Options"
+      "label": "Poll Questions"
     },
     {
-      "fieldname": "options",
+      "fieldname": "questions",
       "fieldtype": "Table",
-      "label": "Options",
-      "options": "Poll Option",
+      "label": "Questions",
+      "options": "Poll Question",
       "reqd": 1
     }
   ],

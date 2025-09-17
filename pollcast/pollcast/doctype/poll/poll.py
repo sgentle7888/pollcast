@@ -1,6 +1,3 @@
-# Copyright (c) 2025, Godwin Ariwodo and contributors
-# For license information, please see license.txt
-
 import frappe
 from frappe.model.document import Document
 from frappe.utils import get_url, now
@@ -34,34 +31,64 @@ class Poll(Document):
         """Get analytics data for the poll"""
         responses = frappe.get_all('Poll Response', 
             filters={'poll': self.name},
-            fields=['poll_option', 'creation']
+            fields=['poll_question', 'response_value', 'creation']
         )
         
-        # Count responses per option
-        option_counts = {}
+        # Group responses by question
+        question_responses = {}
         for response in responses:
-            option = response.poll_option
-            if option in option_counts:
-                option_counts[option] += 1
-            else:
-                option_counts[option] = 1
+            question = response.poll_question
+            if question not in question_responses:
+                question_responses[question] = []
+            question_responses[question].append(response.response_value)
         
-        # Get option details
-        options_data = []
-        for option in self.options:
-            count = option_counts.get(option.name, 0)
-            percentage = (count / len(responses) * 100) if responses else 0
-            options_data.append({
-                'option': option.option_text,
-                'count': count,
-                'percentage': round(percentage, 2)
-            })
+        # Analyze each question
+        questions_data = []
+        for question in self.questions:
+            responses_for_question = question_responses.get(question.name, [])
+            
+            if question.question_type in ['Single Choice', 'Multiple Choice']:
+                # Count option frequencies
+                option_counts = {}
+                for response in responses_for_question:
+                    if response in option_counts:
+                        option_counts[response] += 1
+                    else:
+                        option_counts[response] = 1
+                
+                questions_data.append({
+                    'question': question.question_text,
+                    'type': question.question_type,
+                    'total_responses': len(responses_for_question),
+                    'option_counts': option_counts
+                })
+            
+            elif question.question_type == 'Rating Scale':
+                # Calculate average rating
+                ratings = [float(r) for r in responses_for_question if r.replace('.','').isdigit()]
+                avg_rating = sum(ratings) / len(ratings) if ratings else 0
+                
+                questions_data.append({
+                    'question': question.question_text,
+                    'type': question.question_type,
+                    'total_responses': len(responses_for_question),
+                    'average_rating': round(avg_rating, 2),
+                    'ratings_distribution': self.get_rating_distribution(ratings)
+                })
         
         return {
-            'total_responses': len(responses),
-            'options': options_data,
+            'total_responses': len(set([r.get('creation') for r in responses])),
+            'questions': questions_data,
             'response_timeline': self.get_response_timeline(responses)
         }
+    
+    def get_rating_distribution(self, ratings):
+        """Get distribution of ratings"""
+        distribution = {str(i): 0 for i in range(1, 6)}  # 1-5 scale
+        for rating in ratings:
+            if str(int(rating)) in distribution:
+                distribution[str(int(rating))] += 1
+        return distribution
     
     def get_response_timeline(self, responses):
         """Get response timeline data for charts"""
@@ -69,9 +96,14 @@ class Poll(Document):
         from frappe.utils import getdate
         
         timeline = defaultdict(int)
+        unique_responses = set()
+        
         for response in responses:
-            date = getdate(response.creation)
-            timeline[str(date)] += 1
+            response_id = f"{response.get('creation')}"
+            if response_id not in unique_responses:
+                unique_responses.add(response_id)
+                date = getdate(response.creation)
+                timeline[str(date)] += 1
         
         return dict(timeline)
 
@@ -92,20 +124,33 @@ def get_poll_data(poll_id):
         if poll.end_date and now() > poll.end_date:
             return {'error': 'Poll has ended'}
         
+        questions_data = []
+        for question in poll.questions:
+            q_data = {
+                'name': question.name,
+                'text': question.question_text,
+                'type': question.question_type,
+                'allow_multiple': question.allow_multiple if question.question_type == 'Multiple Choice' else False
+            }
+            
+            if question.question_type in ['Single Choice', 'Multiple Choice']:
+                q_data['options'] = [opt.strip() for opt in (question.options or '').split('\n') if opt.strip()]
+            
+            questions_data.append(q_data)
+        
         return {
             'poll': {
                 'name': poll.name,
                 'title': poll.title,
                 'description': poll.description,
-                'allow_multiple': poll.allow_multiple,
-                'options': [{'name': opt.name, 'text': opt.option_text} for opt in poll.options]
+                'questions': questions_data
             }
         }
     except Exception as e:
         return {'error': str(e)}
 
 @frappe.whitelist(allow_guest=True)
-def submit_poll_response(poll_id, selected_options, participant_info=None):
+def submit_poll_response(poll_id, responses, participant_info=None):
     """API endpoint to submit poll response"""
     try:
         poll = frappe.get_doc('Poll', {'shareable_link': {'like': f'%{poll_id}%'}})
@@ -114,15 +159,29 @@ def submit_poll_response(poll_id, selected_options, participant_info=None):
             return {'error': 'Poll is not active'}
         
         # Create poll responses
-        for option_name in selected_options:
-            response = frappe.get_doc({
-                'doctype': 'Poll Response',
-                'poll': poll.name,
-                'poll_option': option_name,
-                'participant_ip': frappe.local.request_ip if frappe.local.request_ip else '',
-                'participant_info': participant_info or {}
-            })
-            response.insert(ignore_permissions=True)
+        for question_name, response_value in responses.items():
+            if isinstance(response_value, list):
+                # Handle multiple choice responses
+                for value in response_value:
+                    response_doc = frappe.get_doc({
+                        'doctype': 'Poll Response',
+                        'poll': poll.name,
+                        'poll_question': question_name,
+                        'response_value': str(value),
+                        'participant_ip': frappe.local.request_ip if frappe.local.request_ip else '',
+                        'participant_info': participant_info or {}
+                    })
+                    response_doc.insert(ignore_permissions=True)
+            else:
+                response_doc = frappe.get_doc({
+                    'doctype': 'Poll Response',
+                    'poll': poll.name,
+                    'poll_question': question_name,
+                    'response_value': str(response_value),
+                    'participant_ip': frappe.local.request_ip if frappe.local.request_ip else '',
+                    'participant_info': participant_info or {}
+                })
+                response_doc.insert(ignore_permissions=True)
         
         # Update poll total responses
         poll.update_total_responses()
