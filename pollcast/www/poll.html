@@ -1,318 +1,381 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ poll.title if poll else 'Poll' }} - Pollcast</title>
-    <meta name="description" content="{{ poll.description if poll else 'Participate in this poll' }}">
-    
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {% if poll %}
+    <title>{{ poll.title }} - Pollcast</title>
+    <meta name="description" content="{{ poll.description }}" />
+    {% else %}
+    <title>Poll - Pollcast</title>
+    <meta name="description" content="Participate in this poll" />
+    {% endif %}
+
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#be123c">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Pollcast">
-    
+    <meta name="theme-color" content="#be123c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Pollcast" />
+
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/assets/pollcast/images/favicon.ico">
-    <link rel="apple-touch-icon" href="/assets/pollcast/images/apple-touch-icon.png">
-    
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="/assets/pollcast/images/favicon.ico"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="/assets/pollcast/images/apple-touch-icon.png"
+    />
+
     <!-- Manifest -->
-    <link rel="manifest" href="/assets/pollcast/manifest.json">
-    
+    <link rel="manifest" href="/assets/pollcast/manifest.json" />
+
     <!-- Styles -->
-    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css">
-    
+    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css" />
+
     <!-- Vue.js 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-</head>
-<body>
+  </head>
+  <body>
+    {% raw %}
     <div id="app">
-        <div class="pollcast-container">
-            <!-- Connection Status Indicator -->
-            <div class="connection-status" :class="connectionStatus" v-if="showConnectionStatus">
-                {{ connectionStatusText }}
-            </div>
-            
-            <!-- Poll Interface -->
-            <div v-if="!loading && poll && !submitted">
-                <div class="poll-card">
-                    <h1 class="poll-title">{{ poll.title }}</h1>
-                    <div class="poll-description" v-if="poll.description" v-html="poll.description"></div>
-                    
-                    <form @submit.prevent="submitVote">
-                        <div v-for="option in poll.options" :key="option.name" class="poll-option" 
-                             :class="{ selected: isSelected(option.name) }"
-                             @click="selectOption(option.name)">
-                            <input 
-                                :type="poll.allow_multiple ? 'checkbox' : 'radio'"
-                                :name="poll.allow_multiple ? 'poll_option_' + option.name : 'poll_option'"
-                                :value="option.name"
-                                v-model="selectedOptions"
-                                :id="'option_' + option.name"
-                            >
-                            <label :for="'option_' + option.name">{{ option.text }}</label>
-                        </div>
-                        
-                        <button type="submit" class="submit-btn" :disabled="selectedOptions.length === 0 || submitting">
-                            <span v-if="submitting" class="loading-spinner"></span>
-                            {{ submitting ? 'Submitting...' : 'Submit Vote' }}
-                        </button>
-                    </form>
-                </div>
-            </div>
-            
-            <!-- Loading State -->
-            <div v-if="loading" class="poll-card">
-                <div style="text-align: center; padding: 2rem;">
-                    <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
-                    <p>Loading poll...</p>
-                </div>
-            </div>
-            
-            <!-- Success State -->
-            <div v-if="submitted" class="poll-card">
-                <div class="success-message">
-                    <h2 style="margin: 0 0 0.5rem 0;">Thank you for voting!</h2>
-                    <p style="margin: 0;">Your response has been recorded successfully.</p>
-                </div>
-                <button @click="viewResults" class="submit-btn" style="margin-top: 1rem;">
-                    View Results
-                </button>
-            </div>
-            
-            <!-- Error State -->
-            <div v-if="error" class="error-message">
-                {{ error }}
-                <button @click="retryLoad" class="submit-btn" style="margin-top: 1rem; background: var(--background); color: var(--foreground); border: 2px solid var(--border);">
-                    Try Again
-                </button>
-            </div>
-            
-            <!-- PWA Install Prompt -->
-            <div v-if="showInstallPrompt" class="pwa-install-prompt">
-                <p style="margin: 0 0 0.75rem 0;"><strong>Install Pollcast</strong></p>
-                <p style="margin: 0; font-size: 0.875rem;">Add to your home screen for quick access to polls and surveys.</p>
-                <div class="pwa-install-buttons">
-                    <button @click="installPWA" class="pwa-btn">Install</button>
-                    <button @click="dismissInstallPrompt" class="pwa-btn">Not Now</button>
-                </div>
-            </div>
+      <div class="pollcast-container">
+        <!-- Connection Status Indicator -->
+        <div
+          class="connection-status"
+          :class="connectionStatus"
+          v-if="showConnectionStatus"
+        >
+          {{ connectionStatusText }}
         </div>
+
+        <!-- Poll Interface -->
+        <div v-if="!loading && poll && !submitted">
+          <div class="poll-card">
+            <h1 class="poll-title">{{ poll.title }}</h1>
+            <div
+              class="poll-description"
+              v-if="poll.description"
+              v-html="poll.description"
+            ></div>
+
+            <form @submit.prevent="submitVote">
+              <div
+                v-for="option in poll.options"
+                :key="option.name"
+                class="poll-option"
+                :class="{ selected: isSelected(option.name) }"
+                @click="selectOption(option.name)"
+              >
+                <input
+                  :type="poll.allow_multiple ? 'checkbox' : 'radio'"
+                  :name="poll.allow_multiple ? 'poll_option_' + option.name : 'poll_option'"
+                  :value="option.name"
+                  v-model="selectedOptions"
+                  :id="'option_' + option.name"
+                />
+                <label :for="'option_' + option.name">{{ option.text }}</label>
+              </div>
+
+              <button
+                type="submit"
+                class="submit-btn"
+                :disabled="selectedOptions.length === 0 || submitting"
+              >
+                <span v-if="submitting" class="loading-spinner"></span>
+                {{ submitting ? 'Submitting...' : 'Submit Vote' }}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="loading" class="poll-card">
+          <div style="text-align: center; padding: 2rem">
+            <div class="loading-spinner" style="margin: 0 auto 1rem"></div>
+            <p>Loading poll...</p>
+          </div>
+        </div>
+
+        <!-- Success State -->
+        <div v-if="submitted" class="poll-card">
+          <div class="success-message">
+            <h2 style="margin: 0 0 0.5rem 0">Thank you for voting!</h2>
+            <p style="margin: 0">
+              Your response has been recorded successfully.
+            </p>
+          </div>
+          <button
+            @click="viewResults"
+            class="submit-btn"
+            style="margin-top: 1rem"
+          >
+            View Results
+          </button>
+        </div>
+
+        <!-- Error State -->
+        <div v-if="error" class="error-message">
+          {{ error }}
+          <button
+            @click="retryLoad"
+            class="submit-btn"
+            style="
+              margin-top: 1rem;
+              background: var(--background);
+              color: var(--foreground);
+              border: 2px solid var(--border);
+            "
+          >
+            Try Again
+          </button>
+        </div>
+
+        <!-- PWA Install Prompt -->
+        <div v-if="showInstallPrompt" class="pwa-install-prompt">
+          <p style="margin: 0 0 0.75rem 0"><strong>Install Pollcast</strong></p>
+          <p style="margin: 0; font-size: 0.875rem">
+            Add to your home screen for quick access to polls and surveys.
+          </p>
+          <div class="pwa-install-buttons">
+            <button @click="installPWA" class="pwa-btn">Install</button>
+            <button @click="dismissInstallPrompt" class="pwa-btn">
+              Not Now
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
+    {% endraw %}
 
     <script>
-        const { createApp } = Vue;
-        
-        createApp({
-            data() {
-                return {
-                    poll: null,
-                    selectedOptions: [],
-                    loading: true,
-                    submitting: false,
-                    submitted: false,
-                    error: null,
-                    connectionStatus: 'connected',
-                    showConnectionStatus: false,
-                    showInstallPrompt: false,
-                    deferredPrompt: null,
-                    pollId: null
-                }
-            },
-            computed: {
-                connectionStatusText() {
-                    const statusMap = {
-                        'connected': 'Live Updates',
-                        'fallback': 'Auto Refresh',
-                        'disconnected': 'Offline'
-                    };
-                    return statusMap[this.connectionStatus] || 'Unknown';
-                }
-            },
-            mounted() {
-                this.pollId = this.getPollIdFromUrl();
-                this.loadPoll();
-                this.setupPWA();
-                this.setupConnectionMonitoring();
-            },
-            methods: {
-                getPollIdFromUrl() {
-                    const path = window.location.pathname;
-                    const matches = path.match(/\/poll\/([^\/]+)/);
-                    return matches ? matches[1] : null;
-                },
-                
-                async loadPoll() {
-                    if (!this.pollId) {
-                        this.error = 'Invalid poll URL';
-                        this.loading = false;
-                        return;
-                    }
-                    
-                    try {
-                        const response = await fetch(`/api/method/pollcast.pollcast.doctype.poll.poll.get_poll_data?poll_id=${this.pollId}`);
-                        const data = await response.json();
-                        
-                        if (data.message && data.message.error) {
-                            this.error = data.message.error;
-                        } else if (data.message && data.message.poll) {
-                            this.poll = data.message.poll;
-                            // Initialize selectedOptions based on poll type
-                            this.selectedOptions = this.poll.allow_multiple ? [] : '';
-                        } else {
-                            this.error = 'Failed to load poll data';
-                        }
-                    } catch (err) {
-                        this.error = 'Network error. Please check your connection.';
-                        console.error('Poll loading error:', err);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-                
-                selectOption(optionName) {
-                    if (this.poll.allow_multiple) {
-                        const index = this.selectedOptions.indexOf(optionName);
-                        if (index > -1) {
-                            this.selectedOptions.splice(index, 1);
-                        } else {
-                            this.selectedOptions.push(optionName);
-                        }
-                    } else {
-                        this.selectedOptions = optionName;
-                    }
-                },
-                
-                isSelected(optionName) {
-                    if (this.poll.allow_multiple) {
-                        return this.selectedOptions.includes(optionName);
-                    } else {
-                        return this.selectedOptions === optionName;
-                    }
-                },
-                
-                async submitVote() {
-                    if (this.selectedOptions.length === 0 && !this.selectedOptions) {
-                        return;
-                    }
-                    
-                    this.submitting = true;
-                    
-                    try {
-                        const optionsToSubmit = this.poll.allow_multiple ? this.selectedOptions : [this.selectedOptions];
-                        
-                        const response = await fetch('/api/method/pollcast.pollcast.doctype.poll.poll.submit_poll_response', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                poll_id: this.pollId,
-                                selected_options: optionsToSubmit,
-                                participant_info: {
-                                    user_agent: navigator.userAgent,
-                                    timestamp: new Date().toISOString()
-                                }
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.message && data.message.success) {
-                            this.submitted = true;
-                            // Show success notification
-                            this.showNotification('Vote submitted successfully!', 'success');
-                        } else {
-                            this.error = data.message?.error || 'Failed to submit vote';
-                        }
-                    } catch (err) {
-                        this.error = 'Network error. Please try again.';
-                        console.error('Vote submission error:', err);
-                    } finally {
-                        this.submitting = false;
-                    }
-                },
-                
-                viewResults() {
-                    // Redirect to results page or show analytics
-                    window.location.href = `/poll/${this.pollId}/results`;
-                },
-                
-                retryLoad() {
-                    this.error = null;
-                    this.loading = true;
-                    this.loadPoll();
-                },
-                
-                setupPWA() {
-                    // Listen for PWA install prompt
-                    window.addEventListener('beforeinstallprompt', (e) => {
-                        e.preventDefault();
-                        this.deferredPrompt = e;
-                        this.showInstallPrompt = true;
-                    });
-                    
-                    // Check if already installed
-                    if (window.matchMedia('(display-mode: standalone)').matches) {
-                        this.showInstallPrompt = false;
-                    }
-                },
-                
-                async installPWA() {
-                    if (this.deferredPrompt) {
-                        this.deferredPrompt.prompt();
-                        const { outcome } = await this.deferredPrompt.userChoice;
-                        
-                        if (outcome === 'accepted') {
-                            this.showNotification('App installed successfully!', 'success');
-                        }
-                        
-                        this.deferredPrompt = null;
-                        this.showInstallPrompt = false;
-                    }
-                },
-                
-                dismissInstallPrompt() {
-                    this.showInstallPrompt = false;
-                    // Remember user's choice
-                    localStorage.setItem('pwa-install-dismissed', 'true');
-                },
-                
-                setupConnectionMonitoring() {
-                    // Monitor online/offline status
-                    window.addEventListener('online', () => {
-                        this.connectionStatus = 'connected';
-                        this.showConnectionStatus = true;
-                        setTimeout(() => this.showConnectionStatus = false, 3000);
-                    });
-                    
-                    window.addEventListener('offline', () => {
-                        this.connectionStatus = 'disconnected';
-                        this.showConnectionStatus = true;
-                    });
-                    
-                    // Simulate connection status changes for demo
-                    // In real implementation, this would be based on SSE connection status
-                    setInterval(() => {
-                        if (navigator.onLine) {
-                            this.connectionStatus = Math.random() > 0.1 ? 'connected' : 'fallback';
-                        } else {
-                            this.connectionStatus = 'disconnected';
-                        }
-                    }, 10000);
-                },
-                
-                showNotification(message, type = 'info') {
-                    // Simple notification system
-                    if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('Pollcast', {
-                            body: message,
-                            icon: '/assets/pollcast/images/icon-192.png'
-                        });
-                    }
-                }
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return {
+            poll: null,
+            selectedOptions: [],
+            loading: true,
+            submitting: false,
+            submitted: false,
+            error: null,
+            connectionStatus: "connected",
+            showConnectionStatus: false,
+            showInstallPrompt: false,
+            deferredPrompt: null,
+            pollId: null,
+          };
+        },
+        computed: {
+          connectionStatusText() {
+            const statusMap = {
+              connected: "Live Updates",
+              fallback: "Auto Refresh",
+              disconnected: "Offline",
+            };
+            return statusMap[this.connectionStatus] || "Unknown";
+          },
+        },
+        mounted() {
+          this.pollId = this.getPollIdFromUrl();
+          this.loadPoll();
+          this.setupPWA();
+          this.setupConnectionMonitoring();
+        },
+        methods: {
+          getPollIdFromUrl() {
+            const path = window.location.pathname;
+            const matches = path.match(/\/poll\/([^\/]+)/);
+            return matches ? matches[1] : null;
+          },
+
+          async loadPoll() {
+            if (!this.pollId) {
+              this.error = "Invalid poll URL";
+              this.loading = false;
+              return;
             }
-        }).mount('#app');
+
+            try {
+              const response = await fetch(
+                `/api/method/pollcast.pollcast.doctype.poll.poll.get_poll_data?poll_id=${this.pollId}`
+              );
+              const data = await response.json();
+
+              if (data.message && data.message.error) {
+                this.error = data.message.error;
+              } else if (data.message && data.message.poll) {
+                this.poll = data.message.poll;
+                // Initialize selectedOptions based on poll type
+                this.selectedOptions = this.poll.allow_multiple ? [] : "";
+              } else {
+                this.error = "Failed to load poll data";
+              }
+            } catch (err) {
+              this.error = "Network error. Please check your connection.";
+              console.error("Poll loading error:", err);
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          selectOption(optionName) {
+            if (this.poll.allow_multiple) {
+              const index = this.selectedOptions.indexOf(optionName);
+              if (index > -1) {
+                this.selectedOptions.splice(index, 1);
+              } else {
+                this.selectedOptions.push(optionName);
+              }
+            } else {
+              this.selectedOptions = optionName;
+            }
+          },
+
+          isSelected(optionName) {
+            if (this.poll.allow_multiple) {
+              return this.selectedOptions.includes(optionName);
+            } else {
+              return this.selectedOptions === optionName;
+            }
+          },
+
+          async submitVote() {
+            if (this.selectedOptions.length === 0 && !this.selectedOptions) {
+              return;
+            }
+
+            this.submitting = true;
+
+            try {
+              const optionsToSubmit = this.poll.allow_multiple
+                ? this.selectedOptions
+                : [this.selectedOptions];
+
+              const response = await fetch(
+                "/api/method/pollcast.pollcast.doctype.poll.poll.submit_poll_response",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    poll_id: this.pollId,
+                    selected_options: optionsToSubmit,
+                    participant_info: {
+                      user_agent: navigator.userAgent,
+                      timestamp: new Date().toISOString(),
+                    },
+                  }),
+                }
+              );
+
+              const data = await response.json();
+
+              if (data.message && data.message.success) {
+                this.submitted = true;
+                // Show success notification
+                this.showNotification(
+                  "Vote submitted successfully!",
+                  "success"
+                );
+              } else {
+                this.error = data.message?.error || "Failed to submit vote";
+              }
+            } catch (err) {
+              this.error = "Network error. Please try again.";
+              console.error("Vote submission error:", err);
+            } finally {
+              this.submitting = false;
+            }
+          },
+
+          viewResults() {
+            // Redirect to results page or show analytics
+            window.location.href = `/poll/${this.pollId}/results`;
+          },
+
+          retryLoad() {
+            this.error = null;
+            this.loading = true;
+            this.loadPoll();
+          },
+
+          setupPWA() {
+            // Listen for PWA install prompt
+            window.addEventListener("beforeinstallprompt", (e) => {
+              e.preventDefault();
+              this.deferredPrompt = e;
+              this.showInstallPrompt = true;
+            });
+
+            // Check if already installed
+            if (window.matchMedia("(display-mode: standalone)").matches) {
+              this.showInstallPrompt = false;
+            }
+          },
+
+          async installPWA() {
+            if (this.deferredPrompt) {
+              this.deferredPrompt.prompt();
+              const { outcome } = await this.deferredPrompt.userChoice;
+
+              if (outcome === "accepted") {
+                this.showNotification("App installed successfully!", "success");
+              }
+
+              this.deferredPrompt = null;
+              this.showInstallPrompt = false;
+            }
+          },
+
+          dismissInstallPrompt() {
+            this.showInstallPrompt = false;
+            // Remember user's choice
+            localStorage.setItem("pwa-install-dismissed", "true");
+          },
+
+          setupConnectionMonitoring() {
+            // Monitor online/offline status
+            window.addEventListener("online", () => {
+              this.connectionStatus = "connected";
+              this.showConnectionStatus = true;
+              setTimeout(() => (this.showConnectionStatus = false), 3000);
+            });
+
+            window.addEventListener("offline", () => {
+              this.connectionStatus = "disconnected";
+              this.showConnectionStatus = true;
+            });
+
+            // Simulate connection status changes for demo
+            // In real implementation, this would be based on SSE connection status
+            setInterval(() => {
+              if (navigator.onLine) {
+                this.connectionStatus =
+                  Math.random() > 0.1 ? "connected" : "fallback";
+              } else {
+                this.connectionStatus = "disconnected";
+              }
+            }, 10000);
+          },
+
+          showNotification(message, type = "info") {
+            // Simple notification system
+            if (
+              "Notification" in window &&
+              Notification.permission === "granted"
+            ) {
+              new Notification("Pollcast", {
+                body: message,
+                icon: "/assets/pollcast/images/icon-192.png",
+              });
+            }
+          },
+        },
+      }).mount("#app");
     </script>
-</body>
+  </body>
 </html>

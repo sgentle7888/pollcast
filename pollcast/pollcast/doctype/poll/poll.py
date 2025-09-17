@@ -1,6 +1,6 @@
 import frappe
 from frappe.model.document import Document
-from frappe.utils import get_url, now
+from frappe.utils import get_url, get_datetime, now
 import uuid
 
 class Poll(Document):
@@ -16,7 +16,7 @@ class Poll(Document):
     
     def validate(self):
         if self.start_date and self.end_date:
-            if self.start_date >= self.end_date:
+            if get_datetime(self.start_date) >= get_datetime(self.end_date):
                 frappe.throw("End date must be after start date")
     
     def on_update(self):
@@ -107,84 +107,124 @@ class Poll(Document):
         
         return dict(timeline)
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_poll_data(poll_id):
     """API endpoint to get poll data for public voting"""
     try:
-        # Extract poll name from shareable link
-        poll = frappe.get_doc('Poll', {'shareable_link': {'like': f'%{poll_id}%'}})
+        frappe.log_error(f"Looking for poll_id: {poll_id}")
+        
+        # Find poll by shareable link
+        polls = frappe.get_list('Poll', 
+            filters={'shareable_link': ['like', f'%{poll_id}%']},
+            fields=['name'],
+            limit=1,
+            ignore_permissions=True
+        )
+        
+        if not polls:
+            return {'error': 'Poll not found'}
+        
+        poll = frappe.get_doc('Poll', polls[0].name)
+        frappe.log_error(f"Found poll: {poll.name}")
         
         if poll.status != 'Active':
             return {'error': 'Poll is not active'}
         
         # Check if poll is within date range
-        if poll.start_date and now() < poll.start_date:
+        current_time = get_datetime()
+        if poll.start_date and current_time < get_datetime(poll.start_date):
             return {'error': 'Poll has not started yet'}
         
-        if poll.end_date and now() > poll.end_date:
+        if poll.end_date and current_time > get_datetime(poll.end_date):
             return {'error': 'Poll has ended'}
         
-        questions_data = []
-        for question in poll.questions:
-            q_data = {
-                'name': question.name,
-                'text': question.question_text,
-                'type': question.question_type,
-                'allow_multiple': question.allow_multiple if question.question_type == 'Multiple Choice' else False
-            }
-            
-            if question.question_type in ['Single Choice', 'Multiple Choice']:
-                q_data['options'] = [opt.strip() for opt in (question.options or '').split('\n') if opt.strip()]
-            
-            questions_data.append(q_data)
+        # Check if poll has questions
+        if not poll.questions:
+            return {'error': 'No questions found in this poll'}
+        
+        # For simplicity, we'll handle the first question only (as your frontend expects)
+        first_question = poll.questions[0]
+        
+        # Build options array from the first question
+        options = []
+        if first_question.options:
+            option_lines = [opt.strip() for opt in first_question.options.split('\n') if opt.strip()]
+            for opt_text in option_lines:
+                options.append({
+                    'name': opt_text,  # Use the option text as the name/value
+                    'text': opt_text
+                })
         
         return {
             'poll': {
                 'name': poll.name,
                 'title': poll.title,
                 'description': poll.description,
-                'questions': questions_data
+                'allow_multiple': first_question.allow_multiple if hasattr(first_question, 'allow_multiple') else False,
+                'options': options,
+                'question_name': first_question.name,  # Store the question name for response submission
+                'question_text': first_question.question_text
             }
         }
     except Exception as e:
+        frappe.log_error(f"Poll data error: {str(e)}")
         return {'error': str(e)}
 
 @frappe.whitelist(allow_guest=True)
-def submit_poll_response(poll_id, responses, participant_info=None):
+def submit_poll_response(poll_id, selected_options, participant_info=None):
     """API endpoint to submit poll response"""
     try:
-        poll = frappe.get_doc('Poll', {'shareable_link': {'like': f'%{poll_id}%'}})
+        # Find poll by shareable link
+        polls = frappe.get_list('Poll', 
+            filters={'shareable_link': ['like', f'%{poll_id}%']},
+            fields=['name'],
+            limit=1,
+            ignore_permissions=True
+        )
+        
+        if not polls:
+            return {'error': 'Poll not found'}
+        
+        poll = frappe.get_doc('Poll', polls[0].name)
         
         if poll.status != 'Active':
             return {'error': 'Poll is not active'}
         
+        if not poll.questions:
+            return {'error': 'No questions found in this poll'}
+        
+        first_question = poll.questions[0]
+        
         # Create poll responses
-        for question_name, response_value in responses.items():
-            if isinstance(response_value, list):
-                # Handle multiple choice responses
-                for value in response_value:
-                    response_doc = frappe.get_doc({
-                        'doctype': 'Poll Response',
-                        'poll': poll.name,
-                        'poll_question': question_name,
-                        'response_value': str(value),
-                        'participant_ip': frappe.local.request_ip if frappe.local.request_ip else '',
-                        'participant_info': participant_info or {}
-                    })
-                    response_doc.insert(ignore_permissions=True)
-            else:
+        if isinstance(selected_options, list):
+            # Handle multiple selections
+            for option in selected_options:
                 response_doc = frappe.get_doc({
                     'doctype': 'Poll Response',
                     'poll': poll.name,
-                    'poll_question': question_name,
-                    'response_value': str(response_value),
-                    'participant_ip': frappe.local.request_ip if frappe.local.request_ip else '',
-                    'participant_info': participant_info or {}
+                    'poll_question': first_question.name,
+                    'response_value': str(option),
+                    'participant_ip': frappe.local.request_ip if frappe.local and hasattr(frappe.local, 'request_ip') else '',
+                    'participant_info': participant_info or {},
+                    'creation_timestamp': now()
                 })
                 response_doc.insert(ignore_permissions=True)
+        else:
+            # Handle single selection
+            response_doc = frappe.get_doc({
+                'doctype': 'Poll Response',
+                'poll': poll.name,
+                'poll_question': first_question.name,
+                'response_value': str(selected_options),
+                'participant_ip': frappe.local.request_ip if frappe.local and hasattr(frappe.local, 'request_ip') else '',
+                'participant_info': participant_info or {},
+                'creation_timestamp': now()
+            })
+            response_doc.insert(ignore_permissions=True)
         
         # Update poll total responses
         poll.update_total_responses()
+        frappe.db.commit()
         
         return {'success': True, 'message': 'Response submitted successfully'}
     
