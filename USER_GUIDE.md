@@ -33,15 +33,6 @@ Perfect for feedback collection, event planning, market research, team decisions
 
 ## 🚀 Getting Started
 
-### First Time Setup
-
-1. Go to **Poll Manager** role
-2. Create your first poll or survey
-3. Set up email notifications (optional)
-4. Configure automated reports (optional)
-
----
-
 ## 🎯 Creating Amazing Polls
 
 ### Basic Poll Creation
@@ -128,13 +119,6 @@ graph TD
     C --> D[Submit Survey]
 ```
 
-**Benefits:**
-
-- 🎯 Better completion rates
-- 📊 Clear progress indication
-- 🔄 Easy navigation (Previous/Next)
-- 📱 Mobile-friendly pagination
-
 ### Survey Best Practices
 
 - **Keep it Short**: Aim for 5-10 questions
@@ -154,14 +138,6 @@ graph TD
 3. **Select Options**: Click your choice(s)
 4. **Submit**: Hit the submit button
 5. **View Results**: Optional next step
-
-**Features:**
-
-- 📱 Responsive design
-- ⚡ Fast loading
-- 🔒 Anonymous participation
-- 📊 Real-time feedback
-- 🔔 Success notifications
 
 ### Completing a Survey
 
