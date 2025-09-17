@@ -18,28 +18,20 @@ A powerful, feature-rich polling and surveying application built on the Frappe f
 
 ## 🚀 Quick Start
 
-1. **Install Frappe Bench**
-
-   ```bash
-   pip install frappe-bench
-   bench init frappe-bench
-   cd frappe-bench
-   ```
-
-2. **Get Pollcast**
+1. **Get Pollcast**
 
    ```bash
    bench get-app https://github.com/your-org/pollcast.git
    bench install-app pollcast
    ```
 
-3. **Start Server**
+2. **Start Server**
 
    ```bash
    bench start
    ```
 
-4. **Create Your First Poll!**
+3. **Create Your First Poll!**
    - Visit your Frappe site
    - Go to Pollcast > Poll > New Poll
    - Fill in details and share!
@@ -57,21 +49,6 @@ A powerful, feature-rich polling and surveying application built on the Frappe f
 - **Team Decisions**: Quick polls for project choices
 - **Education**: Student feedback and course evaluations
 - **Community Engagement**: Town hall meetings and civic participation
-
-## 🏗️ Architecture
-
-Built with modern web technologies:
-
-- **Frontend**: Vue.js 3, Tailwind CSS, Chart.js
-- **Backend**: Python + Frappe Framework
-- **Database**: MariaDB/MySQL
-- **Real-time**: Server-Sent Events (SSE)
-- **PWA**: Service Workers, IndexedDB
-- **Caching**: Multiple strategies for optimal performance
-
-## 🤝 Contributing
-
-We love contributions! Check out our [Contributing Guide](CONTRIBUTING.md) to get started.
 
 ## 📄 License
 

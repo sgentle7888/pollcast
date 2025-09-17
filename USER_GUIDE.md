@@ -38,40 +38,6 @@ Perfect for feedback collection, event planning, market research, team decisions
 
 ## 🚀 Getting Started
 
-### Installation
-
-1. **Clone the Repository**
-
-   ```bash
-   git clone https://github.com/your-org/pollcast.git
-   cd pollcast
-   ```
-
-2. **Install Dependencies**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Setup Frappe Bench**
-
-   ```bash
-   bench init pollcast-bench
-   cd pollcast-bench
-   bench get-app pollcast
-   bench install-app pollcast
-   ```
-
-4. **Run the Server**
-
-   ```bash
-   bench start
-   ```
-
-5. **Access Pollcast**
-   - Visit `http://localhost:8000` in your browser
-   - Create your admin account
-
 ### First Time Setup
 
 1. Go to **Poll Manager** role
@@ -346,59 +312,6 @@ Access via `{{ base_url }}/analytics-dashboard.html`
 
 ---
 
-## 🔧 API for Developers
-
-### Core Endpoints
-
-**Polls:**
-
-- `GET /api/method/pollcast.api.get_polls_analytics` - Poll analytics
-- `POST /api/method/pollcast.pollcast.doctype.poll.poll.submit_poll_response` - Submit response
-- `GET /api/method/pollcast.pollcast.doctype.poll.poll.get_poll_data` - Poll details
-
-**Surveys:**
-
-- `GET /api/method/pollcast.api.get_surveys_analytics` - Survey analytics
-- `POST /api/method/pollcast.pollcast.doctype.survey.survey.submit_survey_response` - Submit response
-- `GET /api/method/pollcast.pollcast.doctype.survey.survey.get_survey_data` - Survey details
-
-**Analytics:**
-
-- `GET /api/method/pollcast.api.get_dashboard_summary` - Dashboard stats
-- `GET /api/method/pollcast.api.export_analytics` - Export data
-
-### Real-time API
-
-**Server-Sent Events:**
-
-```javascript
-const sseClient = new SSEClient({
-  channels: ["poll_updates", "analytics_updates"],
-});
-
-sseClient.on("poll_update", (data) => {
-  console.log("New poll response!", data);
-});
-```
-
-**Event Types:**
-
-- `poll_update`: New poll responses
-- `survey_update`: New survey submissions
-- `analytics_update`: Statistics changes
-- `system_notification`: System messages
-
-### Authentication
-
-All endpoints support both:
-
-- **Guest Access**: For public polling/surveying
-- **Authenticated**: For admin/analytics access
-
-Use `allow_guest=True` decorator for public endpoints.
-
----
-
 ## 🆘 Troubleshooting & FAQ
 
 ### Common Issues
@@ -414,30 +327,6 @@ A: Ensure HTTPS in production. Check browser compatibility.
 
 **Q: Email reports not sending?**
 A: Verify SMTP settings. Check spam folder.
-
-### Performance Tips
-
-- **Database Optimization**: Regular cleanup jobs
-- **Caching**: Enable Redis for better performance
-- **CDN**: Use for static assets in production
-- **Monitoring**: Set up logging and alerts
-
-### Support Resources
-
-- 📚 **Documentation**: This guide (you're here!)
-- 🐛 **GitHub Issues**: Report bugs and request features
-- 💬 **Community**: Join discussions and share tips
-- 📧 **Email Support**: Contact maintainers
-
-### System Requirements
-
-- **Python**: 3.8+
-- **Frappe**: Latest stable version
-- **Database**: MariaDB/MySQL
-- **Browser**: Modern browsers with ES6 support
-- **Storage**: Sufficient space for responses/analytics
-
----
 
 ## 🎊 Conclusion
 
