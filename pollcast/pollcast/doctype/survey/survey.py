@@ -118,20 +118,38 @@ class Survey(Document):
         
         return dict(timeline)
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_survey_data(survey_id):
     """API endpoint to get survey data for public participation"""
     try:
-        survey = frappe.get_doc('Survey', {'shareable_link': {'like': f'%{survey_id}%'}})
+        frappe.log_error(f"Looking for survey_id: {survey_id}")
+        
+        # Use frappe.get_list with ignore_permissions=True for guest access
+        surveys = frappe.get_list('Survey', 
+            filters={'shareable_link': ['like', f'%{survey_id}%']},
+            fields=['name'],
+            limit=1,
+            ignore_permissions=True
+        )
+        
+        if not surveys:
+            return {'error': 'Survey not found'}
+        
+        survey = frappe.get_doc('Survey', surveys[0].name)
+        frappe.log_error(f"Found survey: {survey.name}")
         
         if survey.status != 'Active':
             return {'error': 'Survey is not active'}
         
+        # Import get_datetime to convert string to datetime for comparison
+        from frappe.utils import get_datetime
+        current_time = get_datetime()
+        
         # Check if survey is within date range
-        if survey.start_date and now() < survey.start_date:
+        if survey.start_date and current_time < get_datetime(survey.start_date):
             return {'error': 'Survey has not started yet'}
         
-        if survey.end_date and now() > survey.end_date:
+        if survey.end_date and current_time > get_datetime(survey.end_date):
             return {'error': 'Survey has ended'}
         
         questions_data = []
@@ -162,13 +180,25 @@ def get_survey_data(survey_id):
             }
         }
     except Exception as e:
+        frappe.log_error(f"Survey data error: {str(e)}")
         return {'error': str(e)}
+    
 
 @frappe.whitelist(allow_guest=True)
 def submit_survey_response(survey_id, responses, participant_info=None):
     """API endpoint to submit survey response"""
     try:
-        survey = frappe.get_doc('Survey', {'shareable_link': {'like': f'%{survey_id}%'}})
+        surveys = frappe.get_list('Survey', 
+            filters={'shareable_link': ['like', f'%{survey_id}%']},
+            fields=['name'],
+            limit=1,
+            ignore_permissions=True
+        )
+        
+        if not surveys:
+            return {'error': 'Survey not found'}
+        
+        survey = frappe.get_doc('Survey', surveys[0].name)
         
         if survey.status != 'Active':
             return {'error': 'Survey is not active'}
@@ -206,6 +236,7 @@ def submit_survey_response(survey_id, responses, participant_info=None):
     except Exception as e:
         frappe.log_error(f"Survey response submission error: {str(e)}")
         return {'error': 'Failed to submit response'}
+
 
 @frappe.whitelist()
 def get_survey_analytics(survey_name):
