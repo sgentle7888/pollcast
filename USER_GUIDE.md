@@ -2,8 +2,6 @@
 
 Welcome to **Pollcast**, the super-powered polling and surveying app that makes collecting opinions as easy as pie (or should we say, as easy as clicking a button?). Whether you're a business guru, event organizer, or just curious about what your friends think about pineapple on pizza, Pollcast has got you covered!
 
-![Pollcast Logo](https://via.placeholder.com/150x50?text=Pollcast)
-
 ---
 
 ## 📋 Table of Contents
@@ -14,10 +12,7 @@ Welcome to **Pollcast**, the super-powered polling and surveying app that makes 
 4. [Building Detailed Surveys](#building-detailed-surveys)
 5. [Participating Made Easy](#participating-made-easy)
 6. [Analytics Dashboard Magic](#analytics-dashboard-magic)
-7. [PWA Power-Up Features](#pwa-power-up-features)
-8. [Automation and Smart Features](#automation-and-smart-features)
-9. [API for Developers](#api-for-developers)
-10. [Troubleshooting & FAQ](#troubleshooting--faq)
+7. [Troubleshooting & FAQ](#troubleshooting--faq)
 
 ---
 
@@ -206,112 +201,6 @@ Access via `{{ base_url }}/analytics-dashboard.html`
 - **SSE Integration**: Server-sent events for instant updates
 - **Push Notifications**: New response alerts
 
-### Charts and Visualizations
-
-1. **Response Timeline**
-
-   - View responses over time
-   - Filter by 24h, 7d, 30d
-   - Interactive Chart.js graphs
-
-2. **Top Performing Content**
-
-   - Bar charts of most popular polls
-   - Engagement metrics
-   - Click to drill down
-
-3. **Detailed Analytics**
-   - **Poll Analytics**: Option percentages, vote counts
-   - **Survey Analytics**: Question breakdowns, completion rates
-   - **Text Responses**: Sample answers (first few)
-   - **Rating Distributions**: Average scores, distributions
-
-### Export Options
-
-- **CSV Export**: Raw data for analysis
-- **Excel Format**: Spreadsheet-ready
-- **PDF Reports**: Professional summaries
-- **Custom Filters**: Include/exclude specific data
-
----
-
-## 📱 PWA Power-Up Features
-
-### Install Pollcast
-
-1. **Browser Prompt**: Click "Install" when prompted
-2. **Manual Install**: Chrome menu > Install Pollcast
-3. **Home Screen**: Add to mobile home screen
-
-### Offline Capabilities
-
-- **Cache First**: Static assets load instantly
-- **Background Sync**: Submit responses when back online
-- **Offline Page**: Graceful degradation
-- **Service Worker**: Smart caching strategies
-
-### Push Notifications
-
-- **New Polls**: Get notified of new polls to take
-- **Survey Reminders**: Gentle nudges for incomplete surveys
-- **Results Available**: When poll/survey results are ready
-- **System Updates**: Maintenance notifications
-
-**Notification Settings:**
-
-- Enable/disable in browser
-- Custom notification preferences
-- Do Not Disturb modes
-
----
-
-## 🤖 Automation and Smart Features
-
-### Scheduled Tasks
-
-**Hourly:**
-
-- Analytics cache refresh
-- Connection health checks
-
-**Daily:**
-
-- Old response cleanup (retention policy)
-- Report generation
-- System maintenance
-
-**Weekly:**
-
-- Trending analysis
-- Performance optimization
-
-### Email Automation
-
-1. **Scheduled Reports**
-
-   - Daily/Weekly/Monthly summaries
-   - Custom recipient lists
-   - PDF/Excel attachments
-
-2. **Response Notifications**
-
-   - Alert creators of new responses
-   - Configurable thresholds
-   - Smart spam prevention
-
-3. **Auto-close Alerts**
-   - Notify when polls/surveys expire
-   - Reminder emails before expiration
-
-### Background Jobs
-
-- **Job Logging**: Track all automated tasks
-- **Error Handling**: Failed job retries
-- **Performance Monitoring**: Job execution times
-- **Manual Triggers**: Run jobs on-demand
-
----
-
 ## 🆘 Troubleshooting & FAQ
 
 ### Common Issues
@@ -335,7 +224,3 @@ Pollcast is more than just a polling app—it's your opinion collection superpow
 Ready to start collecting amazing opinions? Create your first poll now! 🚀
 
 **Happy Polling! 📊✨**
-
----
-
-_Pollcast v1.0.0 - Built with ❤️ using Frappe Framework_
