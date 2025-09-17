@@ -8,8 +8,9 @@
   "engine": "InnoDB",
   "field_order": [
     "poll",
-    "poll_option",
+    "poll_question",
     "column_break_3",
+    "response_value",
     "participant_ip",
     "participant_info",
     "section_break_6",
@@ -25,16 +26,23 @@
       "reqd": 1
     },
     {
-      "fieldname": "poll_option",
+      "fieldname": "poll_question",
       "fieldtype": "Link",
       "in_list_view": 1,
-      "label": "Poll Option",
-      "options": "Poll Option",
+      "label": "Poll Question",
+      "options": "Poll Question",
       "reqd": 1
     },
     {
       "fieldname": "column_break_3",
       "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "response_value",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Response Value",
+      "reqd": 1
     },
     {
       "fieldname": "participant_ip",
