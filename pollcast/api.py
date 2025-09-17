@@ -3,6 +3,8 @@ from frappe import _
 from frappe.utils import now, add_days, get_datetime
 import json
 from datetime import datetime, timedelta
+import time
+from frappe.utils.response import Response
 
 @frappe.whitelist()
 def get_dashboard_summary():
@@ -283,28 +285,33 @@ def generate_pdf_export(data):
 @frappe.whitelist()
 def sse_analytics():
     """Server-Sent Events endpoint for real-time analytics"""
-    try:
-        frappe.local.response.headers['Content-Type'] = 'text/event-stream'
-        frappe.local.response.headers['Cache-Control'] = 'no-cache'
-        frappe.local.response.headers['Connection'] = 'keep-alive'
-        
-        # This is a simplified implementation
-        # In a real SSE implementation, you would:
-        # 1. Keep the connection open
-        # 2. Send periodic updates
-        # 3. Handle client disconnections
-        
-        # For now, just return initial data
-        summary_data = get_dashboard_summary()
-        
-        event_data = {
-            'type': 'summary_update',
-            'summary': summary_data,
-            'timestamp': now()
-        }
-        
-        return f"data: {json.dumps(event_data)}\n\n"
     
-    except Exception as e:
-        frappe.log_error(f"SSE error: {str(e)}")
-        return f"data: {json.dumps({'error': str(e)})}\n\n"
+    def event_stream():
+        # This inner function is a generator that will keep running
+        while True:
+            try:
+                # 1. Get the latest summary data
+                summary_data = get_dashboard_summary()
+                
+                event_data = {
+                    'type': 'summary_update',
+                    'summary': summary_data,
+                    'timestamp': now()
+                }
+                
+                # 2. Yield the data in the required SSE format
+                yield f"data: {json.dumps(event_data)}\n\n"
+                
+                # 3. Wait for 5 seconds before sending the next update
+                time.sleep(5)
+
+            except Exception as e:
+                # If an error occurs, send an error event and break the loop
+                frappe.log_error(f"SSE loop error: {str(e)}")
+                error_data = {'error': 'An error occurred in the SSE stream.'}
+                yield f"data: {json.dumps(error_data)}\n\n"
+                break
+
+    # Return a streaming Response object, passing the generator to it.
+    # This tells Frappe to keep the connection open.
+    return Response(event_stream(), mimetype='text/event-stream')

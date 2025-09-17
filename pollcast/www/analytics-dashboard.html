@@ -4,174 +4,183 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics Dashboard - Pollcast</title>
-    <meta name="description" content="Real-time analytics for polls and surveys">
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#be123c">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Pollcast Dashboard">
-    
-    <!-- Styles -->
-    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css">
-    <link rel="stylesheet" href="/assets/pollcast/css/dashboard.css">
-    
-    <!-- Vue.js 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Date adapter for Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css">
+    <style>
+        .chart-container { height: 300px; }
+        .metric-card { transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+        .status-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .status-connected { background-color: #10b981; }
+        .status-fallback { background-color: #f59e0b; }
+        .status-disconnected { background-color: #ef4444; }
+        .more-questions { color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem; }
+    </style>
 </head>
-<body>
-    <div id="app">
-        <div class="dashboard-container">
-            <!-- Header -->
-            <header class="dashboard-header">
-                <div class="header-content">
-                    <h1 class="dashboard-title">Analytics Dashboard</h1>
-                    <div class="header-controls">
-                        <!-- Connection Status -->
-                        <div class="connection-indicator" :class="connectionStatus">
-                            <div class="status-dot"></div>
-                            <span>{{ connectionStatusText }}</span>
+<body class="bg-gray-50">
+
+<div id="app">
+    {% raw %}
+    <div class="min-h-screen">
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <h1 class="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <span :class="'status-indicator status-' + connectionStatus"></span>
+                            {{ connectionStatusText }}
                         </div>
-                        
-                        <!-- Auto-refresh Toggle -->
-                        <button @click="toggleAutoRefresh" class="refresh-toggle" :class="{ active: autoRefresh }">
-                            <span class="refresh-icon">🔄</span>
+                        <button @click="toggleAutoRefresh" 
+                                :class="autoRefresh ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded-md text-sm font-medium transition-colors">
+                            🔄
                             Auto-refresh
                         </button>
-                        
-                        <!-- Export Button -->
-                        <button @click="exportData" class="export-btn">
-                            <span class="export-icon">📊</span>
+                        <button @click="exportData" 
+                                :disabled="refreshing"
+                                class="bg-rose-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+                            📊
                             Export
                         </button>
                     </div>
                 </div>
-            </header>
+            </div>
+        </header>
 
-            <!-- Loading State -->
-            <div v-if="loading" class="loading-container">
-                <div class="loading-spinner"></div>
-                <p>Loading analytics data...</p>
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div v-if="loading" class="text-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Loading analytics data...</p>
             </div>
 
-            <!-- Dashboard Content -->
-            <div v-else class="dashboard-content">
-                <!-- Summary Cards -->
-                <div class="summary-grid">
-                    <div class="summary-card">
-                        <div class="card-icon polls-icon">📊</div>
-                        <div class="card-content">
-                            <h3>Active Polls</h3>
-                            <div class="card-value">{{ summaryData.activePolls }}</div>
-                            <div class="card-change positive" v-if="summaryData.pollsChange > 0">
-                                +{{ summaryData.pollsChange }} this week
+            <div v-else>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">📊</div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Active Polls</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ summaryData.activePolls }}</p>
+                                <p v-if="summaryData.pollsChange > 0" class="text-sm positive">
+                                    +{{ summaryData.pollsChange }} this week
+                                </p>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="summary-card">
-                        <div class="card-icon surveys-icon">📋</div>
-                        <div class="card-content">
-                            <h3>Active Surveys</h3>
-                            <div class="card-value">{{ summaryData.activeSurveys }}</div>
-                            <div class="card-change positive" v-if="summaryData.surveysChange > 0">
-                                +{{ summaryData.surveysChange }} this week
+                    <div class="metric-card bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">📋</div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Active Surveys</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ summaryData.activeSurveys }}</p>
+                                <p v-if="summaryData.surveysChange > 0" class="text-sm positive">
+                                    +{{ summaryData.surveysChange }} this week
+                                </p>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="summary-card">
-                        <div class="card-icon responses-icon">👥</div>
-                        <div class="card-content">
-                            <h3>Total Responses</h3>
-                            <div class="card-value">{{ summaryData.totalResponses.toLocaleString() }}</div>
-                            <div class="card-change positive" v-if="summaryData.responsesChange > 0">
-                                +{{ summaryData.responsesChange }} today
+                    <div class="metric-card bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">👥</div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Total Responses</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ summaryData.totalResponses.toLocaleString() }}</p>
+                                <p v-if="summaryData.responsesChange > 0" class="text-sm positive">
+                                    +{{ summaryData.responsesChange }} today
+                                </p>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="summary-card">
-                        <div class="card-icon engagement-icon">📈</div>
-                        <div class="card-content">
-                            <h3>Engagement Rate</h3>
-                            <div class="card-value">{{ summaryData.engagementRate }}%</div>
-                            <div class="card-change" :class="summaryData.engagementTrend > 0 ? 'positive' : 'negative'">
-                                {{ summaryData.engagementTrend > 0 ? '+' : '' }}{{ summaryData.engagementTrend }}% vs last week
+                    <div class="metric-card bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">📈</div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Engagement Rate</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ summaryData.engagementRate }}%</p>
+                                <p :class="summaryData.engagementTrend > 0 ? 'positive' : 'negative'" class="text-sm">
+                                    {{ summaryData.engagementTrend > 0 ? '+' : '' }}{{ summaryData.engagementTrend }}% vs last week
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Charts Section -->
-                <div class="charts-grid">
-                    <!-- Response Timeline Chart -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3>Response Timeline</h3>
-                            <div class="chart-controls">
-                                <select v-model="timelineRange" @change="updateTimelineChart" class="range-selector">
-                                    <option value="24h">Last 24 Hours</option>
-                                    <option value="7d">Last 7 Days</option>
-                                    <option value="30d">Last 30 Days</option>
-                                </select>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Response Timeline</h3>
+                            <div class="flex space-x-2">
+                                <button @click="timelineRange = '24h'; updateTimelineChart()" 
+                                        :class="timelineRange === '24h' ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                        class="px-3 py-1 rounded text-sm">Last 24 Hours</button>
+                                <button @click="timelineRange = '7d'; updateTimelineChart()" 
+                                        :class="timelineRange === '7d' ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                        class="px-3 py-1 rounded text-sm">Last 7 Days</button>
+                                <button @click="timelineRange = '30d'; updateTimelineChart()" 
+                                        :class="timelineRange === '30d' ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                        class="px-3 py-1 rounded text-sm">Last 30 Days</button>
                             </div>
                         </div>
-                        <div class="chart-wrapper">
-                            <canvas ref="timelineChart" width="400" height="200"></canvas>
+                        <div class="chart-container">
+                            <canvas ref="timelineChart"></canvas>
                         </div>
                     </div>
 
-                    <!-- Top Performing Polls -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3>Top Performing Polls</h3>
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Top Performing Polls</h3>
                         </div>
-                        <div class="chart-wrapper">
-                            <canvas ref="topPollsChart" width="400" height="200"></canvas>
+                        <div class="chart-container">
+                            <canvas ref="topPollsChart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- Detailed Analytics -->
-                <div class="detailed-analytics">
-                    <!-- Polls Analytics -->
-                    <div class="analytics-section">
-                        <div class="section-header">
-                            <h3>Poll Analytics</h3>
-                            <button @click="refreshPollData" class="refresh-btn" :disabled="refreshing">
-                                <span class="refresh-icon" :class="{ spinning: refreshing }">🔄</span>
-                                Refresh
-                            </button>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-semibold text-gray-900">Poll Analytics</h3>
+                                <button @click="refreshPollData" 
+                                        :disabled="refreshing"
+                                        class="text-rose-600 hover:text-rose-700 disabled:opacity-50">
+                                    🔄
+                                    Refresh
+                                </button>
+                            </div>
                         </div>
-                        
-                        <div class="polls-list">
-                            <div v-for="poll in pollsData" :key="poll.name" class="poll-analytics-card">
-                                <div class="poll-header">
-                                    <h4>{{ poll.title }}</h4>
-                                    <div class="poll-stats">
-                                        <span class="stat">{{ poll.total_responses }} responses</span>
-                                        <span class="stat">{{ poll.engagement_rate }}% engagement</span>
+                        <div class="p-6 max-h-96 overflow-y-auto">
+                            <div v-for="poll in pollsData" :key="poll.name" class="mb-6 last:mb-0">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-medium text-gray-900">{{ poll.title }}</h4>
+                                    <div class="text-right text-sm text-gray-500">
+                                        <div>{{ poll.total_responses }} responses</div>
+                                        <div>{{ poll.engagement_rate }}% engagement</div>
                                     </div>
                                 </div>
-                                
-                                <div class="poll-chart-container">
-                                    <canvas :ref="'pollChart_' + poll.name" width="300" height="150"></canvas>
+                                <div class="mb-3">
+                                    <canvas :ref="'pollChart_' + poll.name" style="height: 200px;"></canvas>
                                 </div>
-                                
-                                <div class="poll-options-breakdown">
-                                    <div v-for="option in poll.options" :key="option.option" class="option-breakdown">
-                                        <div class="option-label">{{ option.option }}</div>
-                                        <div class="option-bar">
-                                            <div class="option-fill" :style="{ width: option.percentage + '%' }"></div>
-                                        </div>
-                                        <div class="option-stats">
-                                            <span>{{ option.count }} votes</span>
-                                            <span>{{ option.percentage }}%</span>
+                                <div class="space-y-2">
+                                    <div v-for="option in poll.options" :key="option.option" class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-700">{{ option.option }}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-20 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-rose-600 h-2 rounded-full" :style="'width: ' + option.percentage + '%'"></div>
+                                            </div>
+                                            <span class="text-sm text-gray-600 w-16 text-right">
+                                                {{ option.count }} votes
+                                                {{ option.percentage }}%
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -179,67 +188,63 @@
                         </div>
                     </div>
 
-                    <!-- Surveys Analytics -->
-                    <div class="analytics-section">
-                        <div class="section-header">
-                            <h3>Survey Analytics</h3>
-                            <button @click="refreshSurveyData" class="refresh-btn" :disabled="refreshing">
-                                <span class="refresh-icon" :class="{ spinning: refreshing }">🔄</span>
-                                Refresh
-                            </button>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-semibold text-gray-900">Survey Analytics</h3>
+                                <button @click="refreshSurveyData" 
+                                        :disabled="refreshing"
+                                        class="text-rose-600 hover:text-rose-700 disabled:opacity-50">
+                                    🔄
+                                    Refresh
+                                </button>
+                            </div>
                         </div>
-                        
-                        <div class="surveys-list">
-                            <div v-for="survey in surveysData" :key="survey.name" class="survey-analytics-card">
-                                <div class="survey-header">
-                                    <h4>{{ survey.title }}</h4>
-                                    <div class="survey-stats">
-                                        <span class="stat">{{ survey.total_responses }} responses</span>
-                                        <span class="stat">{{ survey.completion_rate }}% completion</span>
+                        <div class="p-6 max-h-96 overflow-y-auto">
+                            <div v-for="survey in surveysData" :key="survey.name" class="mb-6 last:mb-0">
+                                <div class="flex justify-between items-start mb-3">
+                                    <h4 class="font-medium text-gray-900">{{ survey.title }}</h4>
+                                    <div class="text-right text-sm text-gray-500">
+                                        <div>{{ survey.total_responses }} responses</div>
+                                        <div>{{ survey.completion_rate }}% completion</div>
                                     </div>
                                 </div>
-                                
-                                <div class="survey-questions">
-                                    <div v-for="question in survey.questions.slice(0, 3)" :key="question.question" class="question-summary">
-                                        <div class="question-text">{{ question.question }}</div>
-                                        <div class="question-type">{{ question.type }}</div>
+                                <div class="space-y-3">
+                                    <div v-for="(question, index) in survey.questions.slice(0, 3)" :key="question.question" class="border-l-2 border-rose-200 pl-3">
+                                        <div class="font-medium text-sm text-gray-800">{{ question.question }}</div>
+                                        <div class="text-xs text-gray-500 mb-2">{{ question.type }}</div>
                                         
-                                        <!-- Multiple Choice/Checkbox Visualization -->
-                                        <div v-if="question.type === 'Multiple Choice' || question.type === 'Checkbox'" class="question-chart">
-                                            <div v-for="(count, option) in question.option_counts" :key="option" class="option-bar-small">
-                                                <span class="option-name">{{ option }}</span>
-                                                <div class="bar-container">
-                                                    <div class="bar-fill" :style="{ width: (count / question.total_responses * 100) + '%' }"></div>
-                                                </div>
-                                                <span class="option-count">{{ count }}</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Rating Scale Visualization -->
-                                        <div v-else-if="question.type === 'Rating Scale'" class="rating-summary">
-                                            <div class="average-rating">
-                                                Average: <strong>{{ question.average_rating }}/5</strong>
-                                            </div>
-                                            <div class="rating-distribution">
-                                                <div v-for="(count, rating) in question.ratings_distribution" :key="rating" class="rating-bar">
-                                                    <span>{{ rating }}★</span>
-                                                    <div class="bar-fill" :style="{ width: (count / question.total_responses * 100) + '%' }"></div>
-                                                    <span>{{ count }}</span>
+                                        <div v-if="question.type === 'Multiple Choice' || question.type === 'Single Choice'">
+                                            <div v-for="(count, option) in question.options" :key="option" class="flex justify-between text-sm">
+                                                <span>{{ option }}</span>
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="w-16 bg-gray-200 rounded-full h-1">
+                                                        <div class="bg-rose-600 h-1 rounded-full" :style="'width: ' + (count / question.total_responses * 100) + '%'"></div>
+                                                    </div>
+                                                    <span class="w-8 text-right">{{ count }}</span>
                                                 </div>
                                             </div>
                                         </div>
                                         
-                                        <!-- Text Input Summary -->
-                                        <div v-else-if="question.type === 'Text Input'" class="text-summary">
-                                            <div class="response-count">{{ question.total_responses }} text responses</div>
-                                            <div class="sample-responses">
-                                                <div v-for="response in question.responses.slice(0, 2)" :key="response" class="sample-response">
-                                                    "{{ response.length > 100 ? response.substring(0, 100) + '...' : response }}"
+                                        <div v-else-if="question.type === 'Rating Scale'">
+                                            <div class="text-sm text-gray-600 mb-1">
+                                                Average: {{ question.average_rating }}/5
+                                            </div>
+                                            <div class="flex space-x-1">
+                                                <div v-for="(count, rating) in question.rating_distribution" :key="rating" class="text-xs">
+                                                    <div>{{ rating }}★</div>
+                                                    <div class="text-gray-500">{{ count }}</div>
                                                 </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div v-else-if="question.type === 'Text'">
+                                            <div class="text-sm text-gray-600 mb-1">{{ question.total_responses }} text responses</div>
+                                            <div v-for="response in question.sample_responses.slice(0, 2)" :key="response" class="text-xs text-gray-500 italic">
+                                                "{{ response.length > 100 ? response.substring(0, 100) + '...' : response }}"
                                             </div>
                                         </div>
                                     </div>
-                                    
                                     <div v-if="survey.questions.length > 3" class="more-questions">
                                         +{{ survey.questions.length - 3 }} more questions
                                     </div>
@@ -250,44 +255,49 @@
                 </div>
             </div>
 
-            <!-- Export Modal -->
-            <div v-if="showExportModal" class="modal-overlay" @click="closeExportModal">
-                <div class="export-modal" @click.stop>
-                    <div class="modal-header">
-                        <h3>Export Analytics Data</h3>
-                        <button @click="closeExportModal" class="close-btn">×</button>
+            <div v-if="showExportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Export Analytics Data</h3>
+                        <button @click="closeExportModal" class="text-gray-400 hover:text-gray-600">×</button>
                     </div>
-                    
-                    <div class="modal-content">
-                        <div class="export-options">
-                            <label class="export-option">
-                                <input type="checkbox" v-model="exportOptions.polls"> Poll Data
-                            </label>
-                            <label class="export-option">
-                                <input type="checkbox" v-model="exportOptions.surveys"> Survey Data
-                            </label>
-                            <label class="export-option">
-                                <input type="checkbox" v-model="exportOptions.responses"> Response Details
-                            </label>
-                            <label class="export-option">
-                                <input type="checkbox" v-model="exportOptions.analytics"> Analytics Summary
-                            </label>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Include:</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportOptions.polls" class="mr-2">
+                                    Poll Data
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportOptions.surveys" class="mr-2">
+                                    Survey Data
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportOptions.responses" class="mr-2">
+                                    Response Details
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportOptions.analytics" class="mr-2">
+                                    Analytics Summary
+                                </label>
+                            </div>
                         </div>
-                        
-                        <div class="export-format">
-                            <label>Format:</label>
-                            <select v-model="exportFormat">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Format:</label>
+                            <select v-model="exportFormat" class="w-full border border-gray-300 rounded-md px-3 py-2">
                                 <option value="csv">CSV</option>
-                                <option value="excel">Excel</option>
+                                <option value="xlsx">Excel</option>
                                 <option value="pdf">PDF Report</option>
                             </select>
                         </div>
                     </div>
-                    
-                    <div class="modal-footer">
-                        <button @click="closeExportModal" class="cancel-btn">Cancel</button>
-                        <button @click="performExport" class="export-confirm-btn" :disabled="exporting">
-                            <span v-if="exporting" class="loading-spinner small"></span>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button @click="closeExportModal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                        <button @click="performExport" 
+                                :disabled="exporting"
+                                class="px-4 py-2 bg-rose-600 text-white rounded-md hover:bg-rose-700 disabled:opacity-50">
+                            <span v-if="exporting">🔄</span>
                             {{ exporting ? 'Exporting...' : 'Export' }}
                         </button>
                     </div>
@@ -295,6 +305,7 @@
             </div>
         </div>
     </div>
+    {% endraw %}
 
     <script>
         const { createApp } = Vue;
@@ -360,13 +371,16 @@
                             this.loadSurveysData()
                         ]);
                         
+                        // Set loading to false FIRST to render the dashboard content
+                        this.loading = false; 
+
+                        // THEN, wait for the DOM to update and initialize the charts
                         this.$nextTick(() => {
                             this.initializeCharts();
                         });
                     } catch (error) {
                         console.error('Dashboard initialization error:', error);
-                    } finally {
-                        this.loading = false;
+                        this.loading = false; // Also stop loading on error
                     }
                 },
                 
@@ -388,11 +402,22 @@
                         const response = await fetch('/api/method/pollcast.api.get_polls_analytics');
                         const data = await response.json();
                         
-                        if (data.message) {
+                        // *** FIX STARTS HERE ***
+                        // Check if the response is a valid array before assigning it
+                        if (data.message && Array.isArray(data.message)) {
                             this.pollsData = data.message;
+                        } else {
+                            // If there's an error from the backend, log it and keep pollsData as an empty array
+                            if (data.message && data.message.error) {
+                                console.error("Error fetching polls analytics:", data.message.error);
+                            }
+                            this.pollsData = []; // Prevents crash
                         }
+                        // *** FIX ENDS HERE ***
+
                     } catch (error) {
                         console.error('Polls data loading error:', error);
+                        this.pollsData = []; // Also prevent crash on network error
                     }
                 },
                 
@@ -401,11 +426,21 @@
                         const response = await fetch('/api/method/pollcast.api.get_surveys_analytics');
                         const data = await response.json();
                         
-                        if (data.message) {
+                        // *** FIX STARTS HERE ***
+                        // Apply the same robust check for surveys
+                        if (data.message && Array.isArray(data.message)) {
                             this.surveysData = data.message;
+                        } else {
+                            if (data.message && data.message.error) {
+                                console.error("Error fetching surveys analytics:", data.message.error);
+                            }
+                            this.surveysData = [];
                         }
+                        // *** FIX ENDS HERE ***
+
                     } catch (error) {
                         console.error('Surveys data loading error:', error);
+                        this.surveysData = [];
                     }
                 },
                 
@@ -458,6 +493,7 @@
                 },
                 
                 createTopPollsChart() {
+                    if (!this.$refs.topPollsChart) return;
                     const ctx = this.$refs.topPollsChart.getContext('2d');
                     
                     const topPolls = this.pollsData.slice(0, 5);

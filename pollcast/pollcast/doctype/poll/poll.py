@@ -1,3 +1,6 @@
+# Copyright (c) 2025, Godwin Ariwodo and contributors
+# For license information, please see license.txt
+
 import frappe
 from frappe.model.document import Document
 from frappe.utils import get_url, get_datetime, now
@@ -44,42 +47,56 @@ class Poll(Document):
         
         # Analyze each question
         questions_data = []
-        for question in self.questions:
+        first_question_options = [] # This will hold the options for the dashboard view
+
+        for i, question in enumerate(self.questions):
             responses_for_question = question_responses.get(question.name, [])
+            total_q_responses = len(responses_for_question)
             
+            question_data = {
+                'question': question.question_text,
+                'type': question.question_type,
+                'total_responses': total_q_responses
+            }
+
             if question.question_type in ['Single Choice', 'Multiple Choice']:
-                # Count option frequencies
                 option_counts = {}
                 for response in responses_for_question:
-                    if response in option_counts:
-                        option_counts[response] += 1
-                    else:
-                        option_counts[response] = 1
+                    option_counts[response] = option_counts.get(response, 0) + 1
                 
-                questions_data.append({
-                    'question': question.question_text,
-                    'type': question.question_type,
-                    'total_responses': len(responses_for_question),
-                    'option_counts': option_counts
-                })
-            
+                # Create a structured list of options with counts and percentages
+                structured_options = []
+                defined_options = [opt.strip() for opt in (question.options or '').split('\n') if opt.strip()]
+                
+                for opt_text in defined_options:
+                    count = option_counts.get(opt_text, 0)
+                    percentage = round((count / total_q_responses) * 100, 1) if total_q_responses > 0 else 0
+                    structured_options.append({
+                        'option': opt_text,
+                        'count': count,
+                        'percentage': percentage
+                    })
+                
+                question_data['options'] = structured_options
+                
+                # For the main dashboard analytics, use the options from the first question
+                if i == 0:
+                    first_question_options = structured_options
+
             elif question.question_type == 'Rating Scale':
-                # Calculate average rating
                 ratings = [float(r) for r in responses_for_question if r.replace('.','').isdigit()]
                 avg_rating = sum(ratings) / len(ratings) if ratings else 0
-                
-                questions_data.append({
-                    'question': question.question_text,
-                    'type': question.question_type,
-                    'total_responses': len(responses_for_question),
-                    'average_rating': round(avg_rating, 2),
-                    'ratings_distribution': self.get_rating_distribution(ratings)
-                })
-        
+                question_data['average_rating'] = round(avg_rating, 2)
+                question_data['ratings_distribution'] = self.get_rating_distribution(ratings)
+            
+            questions_data.append(question_data)
+
         return {
             'total_responses': len(set([r.get('creation') for r in responses])),
             'questions': questions_data,
-            'response_timeline': self.get_response_timeline(responses)
+            'response_timeline': self.get_response_timeline(responses),
+            # Add the new top-level key that api.py is expecting
+            'options': first_question_options
         }
     
     def get_rating_distribution(self, ratings):
@@ -107,6 +124,7 @@ class Poll(Document):
         
         return dict(timeline)
 
+# ... (rest of the file remains the same) ...
 @frappe.whitelist(allow_guest=True)
 def get_poll_data(poll_id):
     """API endpoint to get poll data for public voting"""
