@@ -137,26 +137,42 @@ def calculate_completion_rate(survey_name):
         if total_questions == 0:
             return 100
         
-        # Get unique participants
-        participants = frappe.db.sql("""
-            SELECT DISTINCT participant_ip 
-            FROM `tabSurvey Response` 
-            WHERE survey = %s
-        """, survey_name)
+        # Get all responses for the survey to identify unique submissions by creation timestamp
+        responses = frappe.get_all('Survey Response', 
+            filters={'survey': survey_name}, 
+            fields=['creation', 'survey_question']
+        )
         
-        if not participants:
+        if not responses:
             return 0
         
-        # Calculate average questions answered per participant
-        total_responses = frappe.db.count('Survey Response', {'survey': survey_name})
-        avg_questions_answered = total_responses / len(participants)
+        # Group answered questions by unique submission (identified by creation timestamp)
+        submissions = {}
+        for r in responses:
+            # Use creation timestamp as a key for a single submission
+            submission_key = r.creation
+            if submission_key not in submissions:
+                submissions[submission_key] = set()
+            submissions[submission_key].add(r.survey_question)
+            
+        if not submissions:
+            return 0
+            
+        num_submissions = len(submissions)
+        # Sum the number of unique questions answered in each submission
+        total_questions_answered = sum(len(questions_set) for questions_set in submissions.values())
+        
+        # Calculate the average number of questions answered per submission
+        avg_questions_answered = total_questions_answered / num_submissions
         
         completion_rate = (avg_questions_answered / total_questions) * 100
-        return round(completion_rate, 1)
+        # Ensure completion rate does not exceed 100%
+        return round(min(completion_rate, 100.0), 1)
     
-    except:
+    except Exception as e:
+        frappe.log_error(f"Error calculating completion rate for {survey_name}: {str(e)}")
         return 0
-
+    
 @frappe.whitelist()
 def export_analytics():
     """Export analytics data in various formats"""
