@@ -188,26 +188,35 @@ def get_survey_data(survey_id):
 def submit_survey_response(survey_id, responses, participant_info=None):
     """API endpoint to submit survey response"""
     try:
-        surveys = frappe.get_list('Survey', 
+        frappe.log_error(f"Submit survey response called with survey_id: {survey_id}")
+        frappe.log_error(f"Responses: {responses}")
+
+        surveys = frappe.get_list('Survey',
             filters={'shareable_link': ['like', f'%{survey_id}%']},
             fields=['name'],
             limit=1,
             ignore_permissions=True
         )
-        
+
+        frappe.log_error(f"Found surveys: {surveys}")
+
         if not surveys:
             return {'error': 'Survey not found'}
-        
+
         survey = frappe.get_doc('Survey', surveys[0].name)
-        
+        frappe.log_error(f"Survey status: {survey.status}")
+
         if survey.status != 'Active':
             return {'error': 'Survey is not active'}
         
         # Create survey responses
         for question_name, response_value in responses.items():
+            frappe.log_error(f"Creating response for question: {question_name}, value: {response_value}")
+
             if isinstance(response_value, list):
                 # Handle checkbox responses
                 for value in response_value:
+                    frappe.log_error(f"Creating checkbox response: {value}")
                     response_doc = frappe.get_doc({
                         'doctype': 'Survey Response',
                         'survey': survey.name,
@@ -218,6 +227,7 @@ def submit_survey_response(survey_id, responses, participant_info=None):
                     })
                     response_doc.insert(ignore_permissions=True)
             else:
+                frappe.log_error(f"Creating single response: {response_value}")
                 response_doc = frappe.get_doc({
                     'doctype': 'Survey Response',
                     'survey': survey.name,
@@ -246,4 +256,3 @@ def get_survey_analytics(survey_name):
         return survey.get_analytics_data()
     except Exception as e:
         return {'error': str(e)}
-
