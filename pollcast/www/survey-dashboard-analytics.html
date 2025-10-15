@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Survey Analytics Dashboard - Pollcast</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css" />
+    <style>
+      .chart-container {
+        height: 400px;
+      }
+      .metric-card {
+        transition: all 0.3s ease;
+      }
+      .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      }
+      .sentiment-positive {
+        color: #10b981;
+      }
+      .sentiment-negative {
+        color: #ef4444;
+      }
+      .sentiment-neutral {
+        color: #6b7280;
+      }
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+      }
+      .status-connected {
+        background-color: #10b981;
+      }
+      .status-fallback {
+        background-color: #f59e0b;
+      }
+      .status-disconnected {
+        background-color: #ef4444;
+      }
+      .rating-bar {
+        transition: width 0.8s ease-in-out;
+      }
+      .word-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .word-tag {
+        display: inline-block;
+        padding: 4px 8px;
+        background: #e5e7eb;
+        border-radius: 12px;
+        font-size: 12px;
+        color: #374151;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50">
+    <div id="app">
+      {% raw %}
+      <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+              <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-3">
+                  <div
+                    class="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-white font-bold text-lg">📝</span>
+                  </div>
+                  <div>
+                    <h1 class="text-2xl font-bold text-gray-900">
+                      {{ survey.title || 'Loading Survey...' }}
+                    </h1>
+                    <div class="flex items-center space-x-2 mt-1">
+                      <span
+                        class="px-2 py-1 text-xs rounded-full"
+                        :class="survey.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                      >
+                        {{ survey.status }}
+                      </span>
+                      <span class="text-sm text-gray-500">•</span>
+                      <span class="text-sm text-gray-600"
+                        >{{ survey.total_responses || 0 }} responses</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <div class="flex items-center">
+                  <span
+                    :class="'status-indicator status-' + connectionStatus"
+                  ></span>
+                  <span class="text-sm text-gray-600"
+                    >{{ connectionStatusText }}</span
+                  >
+                </div>
+                <button
+                  @click="exportData"
+                  class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                >
+                  📊 Export Results
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div v-if="loading" class="text-center py-16">
+            <div
+              class="animate-spin rounded-full h-16 w-16 border-b-2 border-emerald-600 mx-auto"
+            ></div>
+            <p class="mt-4 text-lg text-gray-600">
+              Loading survey analytics...
+            </p>
+          </div>
+
+          <div v-else-if="error" class="text-center py-16">
+            <div class="text-red-600 text-6xl mb-4">⚠️</div>
+            <p class="text-xl text-gray-800 mb-2">Error Loading Survey Data</p>
+            <p class="text-gray-600">{{ error }}</p>
+          </div>
+
+          <div v-else-if="showSurveySelector" class="max-w-4xl mx-auto">
+            <!-- Survey Selection Interface -->
+            <div
+              class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center"
+            >
+              <div class="text-emerald-600 text-6xl mb-4">📝</div>
+              <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                Select a Survey
+              </h2>
+              <p class="text-gray-600 mb-8">
+                Choose a survey to view its detailed analytics
+              </p>
+
+              <div
+                v-if="availableSurveys.length === 0"
+                class="text-center py-8"
+              >
+                <p class="text-gray-500">No surveys available</p>
+              </div>
+
+              <div
+                v-else
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
+                <div
+                  v-for="survey in availableSurveys"
+                  :key="survey.name"
+                  @click="selectSurvey(survey)"
+                  class="p-6 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 hover:bg-emerald-50 transition-all duration-200"
+                >
+                  <div class="text-center">
+                    <div class="text-3xl mb-3">📊</div>
+                    <h3 class="font-semibold text-gray-900 mb-2">
+                      {{ survey.title }}
+                    </h3>
+                    <div class="space-y-1 text-sm text-gray-600">
+                      <p>{{ survey.total_responses }} responses</p>
+                      <p>{{ survey.completion_rate }}% completion rate</p>
+                      <span
+                        class="inline-block px-2 py-1 text-xs rounded-full"
+                        :class="survey.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                      >
+                        {{ survey.status }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else>
+            <!-- Key Metrics -->
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            >
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">
+                      Total Responses
+                    </p>
+                    <p class="text-3xl font-bold text-gray-900">
+                      {{ survey.total_responses }}
+                    </p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">📋</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">
+                      Unique Respondents
+                    </p>
+                    <p class="text-3xl font-bold text-gray-900">
+                      {{ survey.unique_respondents }}
+                    </p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">👥</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">
+                      Completion Rate
+                    </p>
+                    <p class="text-3xl font-bold text-gray-900">
+                      {{ survey.completion_rate }}%
+                    </p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">✅</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">Avg Time</p>
+                    <p class="text-lg font-bold text-gray-900">
+                      {{ survey.avg_completion_time || 'N/A' }}
+                    </p>
+                    <p class="text-xs text-gray-500">minutes</p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">⏱️</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overall Sentiment Analysis -->
+            <div
+              v-if="text_analysis.sentiment_overview"
+              class="mb-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+            >
+              <h3 class="text-xl font-bold text-gray-900 mb-4">
+                Overall Sentiment Analysis
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="text-center">
+                  <div
+                    class="text-4xl mb-2"
+                    :class="text_analysis.sentiment_overview.overall === 'positive' ? 'sentiment-positive' : text_analysis.sentiment_overview.overall === 'negative' ? 'sentiment-negative' : 'sentiment-neutral'"
+                  >
+                    {{ text_analysis.sentiment_overview.overall === 'positive' ?
+                    '😊' : text_analysis.sentiment_overview.overall ===
+                    'negative' ? '😞' : '😐' }}
+                  </div>
+                  <p class="font-semibold capitalize">
+                    {{ text_analysis.sentiment_overview.overall }} Sentiment
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    Based on {{
+                    text_analysis.sentiment_overview.total_sentiment_questions
+                    }} text questions
+                  </p>
+                </div>
+                <div class="text-center">
+                  <div class="text-4xl mb-2 text-green-600">👍</div>
+                  <p class="font-semibold">
+                    {{ text_analysis.sentiment_overview.positive_questions }}
+                  </p>
+                  <p class="text-sm text-gray-600">Positive Questions</p>
+                </div>
+                <div class="text-center">
+                  <div class="text-4xl mb-2 text-red-600">👎</div>
+                  <p class="font-semibold">
+                    {{ text_analysis.sentiment_overview.negative_questions }}
+                  </p>
+                  <p class="text-sm text-gray-600">Negative Questions</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <!-- Response Timeline -->
+              <div
+                class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+              >
+                <h3 class="text-xl font-bold text-gray-900 mb-6">
+                  Response Timeline
+                </h3>
+                <div class="chart-container">
+                  <canvas ref="timelineChart"></canvas>
+                </div>
+              </div>
+
+              <!-- Question Types Distribution -->
+              <div
+                class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+              >
+                <h3 class="text-xl font-bold text-gray-900 mb-6">
+                  Question Types
+                </h3>
+                <div class="chart-container">
+                  <canvas ref="questionTypesChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Question-by-Question Analysis -->
+            <div
+              class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100"
+            >
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-xl font-bold text-gray-900">
+                  Question Analysis
+                </h3>
+                <p class="text-sm text-gray-600 mt-1">
+                  Detailed breakdown of responses for each question
+                </p>
+              </div>
+              <div class="p-6">
+                <div
+                  v-if="question_analytics.length === 0"
+                  class="text-center py-8 text-gray-500"
+                >
+                  No questions found
+                </div>
+                <div v-else class="space-y-8">
+                  <div
+                    v-for="(question, index) in question_analytics"
+                    :key="question.question_id"
+                    class="border-b border-gray-200 last:border-b-0 pb-8 last:pb-0"
+                  >
+                    <div class="flex items-start justify-between mb-4">
+                      <div class="flex-grow">
+                        <div class="flex items-center space-x-2 mb-2">
+                          <h4 class="text-lg font-semibold text-gray-900">
+                            {{ question.question_text }}
+                          </h4>
+                          <span
+                            class="px-2 py-1 text-xs rounded-full"
+                            :class="question.required ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'"
+                          >
+                            {{ question.required ? 'Required' : 'Optional' }}
+                          </span>
+                        </div>
+                        <div
+                          class="flex items-center space-x-4 text-sm text-gray-600"
+                        >
+                          <span>{{ question.question_type }}</span>
+                          <span>•</span>
+                          <span>{{ question.total_responses }} responses</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Multiple Choice / Checkbox -->
+                    <div
+                      v-if="question.question_type === 'Multiple Choice' || question.question_type === 'Checkbox'"
+                    >
+                      <div class="space-y-3">
+                        <div
+                          v-for="(count, option) in question.option_counts"
+                          :key="option"
+                          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        >
+                          <span class="font-medium text-gray-900"
+                            >{{ option }}</span
+                          >
+                          <div class="flex items-center space-x-3">
+                            <div class="w-32 bg-gray-200 rounded-full h-3">
+                              <div
+                                class="bg-emerald-600 h-3 rounded-full rating-bar"
+                                :style="'width: ' + (count / question.total_responses * 100) + '%'"
+                              ></div>
+                            </div>
+                            <span
+                              class="text-sm font-medium text-gray-700 w-12 text-right"
+                              >{{ count }} ({{ ((count /
+                              question.total_responses) * 100).toFixed(1)
+                              }}%)</span
+                            >
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Rating Scale -->
+                    <div v-else-if="question.question_type === 'Rating Scale'">
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <p class="text-sm text-gray-600 mb-2">
+                            Average Rating
+                          </p>
+                          <div class="flex items-center space-x-2">
+                            <div class="text-3xl font-bold text-gray-900">
+                              {{ question.average_rating }}
+                            </div>
+                            <div class="text-lg text-gray-600">/ 5</div>
+                          </div>
+                        </div>
+                        <div>
+                          <p class="text-sm text-gray-600 mb-2">
+                            Rating Distribution
+                          </p>
+                          <div class="space-y-2">
+                            <div
+                              v-for="(count, rating) in question.rating_distribution"
+                              :key="rating"
+                              class="flex items-center justify-between"
+                            >
+                              <div class="flex items-center space-x-2">
+                                <span class="text-sm">{{ rating }}★</span>
+                              </div>
+                              <div class="flex items-center space-x-2">
+                                <div class="w-20 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    class="bg-emerald-600 h-2 rounded-full rating-bar"
+                                    :style="'width: ' + (count / question.total_responses * 100) + '%'"
+                                  ></div>
+                                </div>
+                                <span
+                                  class="text-sm text-gray-600 w-8 text-right"
+                                  >{{ count }}</span
+                                >
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Text Input -->
+                    <div v-else-if="question.question_type === 'Text Input'">
+                      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                          <p class="text-sm text-gray-600 mb-3">
+                            Text Responses
+                          </p>
+                          <div class="space-y-2 max-h-48 overflow-y-auto">
+                            <div
+                              v-for="response in question.text_responses"
+                              :key="response"
+                              class="p-3 bg-gray-50 rounded-lg"
+                            >
+                              <p class="text-sm text-gray-700 italic">
+                                "{{ response }}"
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-if="question.word_frequency">
+                          <p class="text-sm text-gray-600 mb-3">
+                            Word Frequency
+                          </p>
+                          <div class="word-cloud">
+                            <span
+                              v-for="(count, word) in question.word_frequency"
+                              :key="word"
+                              class="word-tag"
+                              :style="'font-size: ' + (10 + count * 2) + 'px'"
+                            >
+                              {{ word }} ({{ count }})
+                            </span>
+                          </div>
+                          <div
+                            v-if="question.sentiment_summary"
+                            class="mt-4 p-3 bg-gray-50 rounded-lg"
+                          >
+                            <p class="text-sm font-medium text-gray-700 mb-1">
+                              Sentiment Analysis
+                            </p>
+                            <div class="flex items-center space-x-2">
+                              <span
+                                class="text-sm"
+                                :class="question.sentiment_summary.sentiment === 'positive' ? 'sentiment-positive' : question.sentiment_summary.sentiment === 'negative' ? 'sentiment-negative' : 'sentiment-neutral'"
+                              >
+                                {{ question.sentiment_summary.sentiment ===
+                                'positive' ? '😊 Positive' :
+                                question.sentiment_summary.sentiment ===
+                                'negative' ? '😞 Negative' : '😐 Neutral' }}
+                              </span>
+                              <span class="text-xs text-gray-500"
+                                >({{ (question.sentiment_summary.confidence *
+                                100).toFixed(0) }}% confidence)</span
+                              >
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+      {% endraw %}
+    </div>
+
+    <script>
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return {
+            loading: true,
+            error: null,
+            survey: {},
+            question_analytics: [],
+            response_timeline: [],
+            text_analysis: {},
+            charts: {},
+            connectionStatus: "connected",
+            availableSurveys: [],
+            showSurveySelector: false,
+          };
+        },
+        computed: {
+          connectionStatusText() {
+            const statusMap = {
+              connected: "Live Updates",
+              fallback: "Auto Refresh (5s)",
+              disconnected: "Offline",
+            };
+            return statusMap[this.connectionStatus] || "Unknown";
+          },
+        },
+        async mounted() {
+          // Get survey ID from URL parameter
+          const urlParams = new URLSearchParams(window.location.search);
+          const surveyId = urlParams.get("survey_id");
+
+          if (surveyId) {
+            await this.loadSurveyAnalytics(surveyId);
+          } else {
+            // No survey ID provided, load all surveys for selection
+            await this.loadAvailableSurveys();
+          }
+        },
+        methods: {
+          async loadSurveyAnalytics(surveyId) {
+            try {
+              this.loading = true;
+              this.error = null;
+
+              const response = await fetch(
+                `/api/method/pollcast.api.get_survey_analytics?survey_id=${surveyId}`
+              );
+              const data = await response.json();
+
+              if (data.message && data.message.error) {
+                this.error = data.message.error;
+              } else if (data.message) {
+                this.survey = data.message.survey;
+                this.question_analytics = data.message.question_analytics;
+                this.response_timeline = data.message.response_timeline;
+                this.text_analysis = data.message.text_analysis;
+
+                // Update page title
+                document.title = `${this.survey.title} - Survey Analytics`;
+
+                // Initialize charts after data is loaded
+                this.$nextTick(() => {
+                  this.initializeCharts();
+                });
+              } else {
+                this.error = "Invalid response format";
+              }
+            } catch (error) {
+              console.error("Error loading survey analytics:", error);
+              this.error = "Failed to load survey data";
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          async loadAvailableSurveys() {
+            try {
+              this.loading = true;
+              this.error = null;
+
+              const response = await fetch(
+                "/api/method/pollcast.api.get_surveys_analytics"
+              );
+              const data = await response.json();
+
+              if (data.message && Array.isArray(data.message)) {
+                this.availableSurveys = data.message;
+                if (this.availableSurveys.length === 0) {
+                  this.error =
+                    "No surveys found. Create a survey first to view analytics.";
+                } else {
+                  this.showSurveySelector = true;
+                }
+              } else {
+                this.error = "Failed to load available surveys";
+              }
+            } catch (error) {
+              console.error("Error loading available surveys:", error);
+              this.error = "Failed to load surveys list";
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          selectSurvey(survey) {
+            // Redirect to the same page with survey_id parameter
+            const url = new URL(window.location);
+            url.searchParams.set("survey_id", survey.name);
+            window.location.href = url.toString();
+          },
+
+          initializeCharts() {
+            this.createTimelineChart();
+            this.createQuestionTypesChart();
+          },
+
+          createTimelineChart() {
+            const ctx = this.$refs.timelineChart?.getContext("2d");
+            if (!ctx || !this.response_timeline.length) return;
+
+            this.charts.timeline = new Chart(ctx, {
+              type: "line",
+              data: {
+                labels: this.response_timeline.map((item) => item.date),
+                datasets: [
+                  {
+                    label: "Daily Responses",
+                    data: this.response_timeline.map((item) => item.responses),
+                    borderColor: "#059669",
+                    backgroundColor: "rgba(5, 150, 105, 0.1)",
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: "#059669",
+                    pointBorderColor: "#ffffff",
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false,
+                  },
+                  tooltip: {
+                    mode: "index",
+                    intersect: false,
+                    callbacks: {
+                      title: (tooltipItems) => {
+                        return `Date: ${tooltipItems[0].label}`;
+                      },
+                      label: (context) => {
+                        return `Responses: ${context.parsed.y}`;
+                      },
+                    },
+                  },
+                },
+                scales: {
+                  x: {
+                    display: true,
+                    title: {
+                      display: true,
+                      text: "Date",
+                    },
+                  },
+                  y: {
+                    display: true,
+                    title: {
+                      display: true,
+                      text: "Number of Responses",
+                    },
+                    beginAtZero: true,
+                  },
+                },
+                interaction: {
+                  intersect: false,
+                  mode: "nearest",
+                },
+              },
+            });
+          },
+
+          createQuestionTypesChart() {
+            const ctx = this.$refs.questionTypesChart?.getContext("2d");
+            if (!ctx) return;
+
+            // Calculate question types distribution
+            const typeDistribution = {};
+            this.question_analytics.forEach((question) => {
+              const type = question.question_type;
+              typeDistribution[type] = (typeDistribution[type] || 0) + 1;
+            });
+
+            this.charts.questionTypes = new Chart(ctx, {
+              type: "doughnut",
+              data: {
+                labels: Object.keys(typeDistribution),
+                datasets: [
+                  {
+                    data: Object.values(typeDistribution),
+                    backgroundColor: [
+                      "#059669",
+                      "#10b981",
+                      "#34d399",
+                      "#6ee7b7",
+                      "#a7f3d0",
+                    ],
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "bottom",
+                    labels: {
+                      padding: 20,
+                      usePointStyle: true,
+                      font: {
+                        size: 12,
+                      },
+                    },
+                  },
+                },
+              },
+            });
+          },
+
+          async exportData() {
+            try {
+              // Create export data
+              const exportData = {
+                survey: this.survey,
+                question_analytics: this.question_analytics,
+                text_analysis: this.text_analysis,
+                export_date: new Date().toISOString(),
+              };
+
+              // Create CSV content
+              let csvContent = "Survey Analytics Export\n\n";
+              csvContent += `Survey Title:,${this.survey.title}\n`;
+              csvContent += `Total Responses:,${this.survey.total_responses}\n`;
+              csvContent += `Unique Respondents:,${this.survey.unique_respondents}\n`;
+              csvContent += `Completion Rate:,${this.survey.completion_rate}%\n`;
+              csvContent += `Export Date:,${new Date().toLocaleString()}\n\n`;
+
+              csvContent += "Question Analysis\n";
+              csvContent += "Question,Type,Total Responses,Details\n";
+              this.question_analytics.forEach((question) => {
+                let details = "";
+                if (
+                  question.question_type === "Multiple Choice" ||
+                  question.question_type === "Checkbox"
+                ) {
+                  details = Object.entries(question.option_counts || {})
+                    .map(([option, count]) => `${option}: ${count}`)
+                    .join("; ");
+                } else if (question.question_type === "Rating Scale") {
+                  details = `Average: ${question.average_rating}/5`;
+                } else if (question.question_type === "Text Input") {
+                  details = `${
+                    question.text_responses?.length || 0
+                  } text responses`;
+                }
+
+                csvContent += `"${question.question_text}",${question.question_type},${question.total_responses},"${details}"\n`;
+              });
+
+              // Create and download file
+              const blob = new Blob([csvContent], {
+                type: "text/csv;charset=utf-8;",
+              });
+              const link = document.createElement("a");
+              const url = URL.createObjectURL(blob);
+              link.setAttribute("href", url);
+              link.setAttribute(
+                "download",
+                `survey_analytics_${this.survey.name}_${
+                  new Date().toISOString().split("T")[0]
+                }.csv`
+              );
+              link.style.visibility = "hidden";
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } catch (error) {
+              console.error("Export error:", error);
+              alert("Export failed. Please try again.");
+            }
+          },
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>

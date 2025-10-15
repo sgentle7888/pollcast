@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Poll Analytics Dashboard - Pollcast</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/pollcast/css/pollcast.css" />
+    <style>
+      .winner-badge {
+        background: linear-gradient(45deg, #fbbf24, #f59e0b);
+      }
+      .chart-container {
+        height: 400px;
+      }
+      .metric-card {
+        transition: all 0.3s ease;
+      }
+      .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      }
+      .vote-bar {
+        transition: width 0.8s ease-in-out;
+      }
+      .timeline-dot {
+        transition: all 0.3s ease;
+      }
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+      }
+      .status-connected {
+        background-color: #10b981;
+      }
+      .status-fallback {
+        background-color: #f59e0b;
+      }
+      .status-disconnected {
+        background-color: #ef4444;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50">
+    <div id="app">
+      {% raw %}
+      <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+              <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-3">
+                  <div
+                    class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-white font-bold text-lg">📊</span>
+                  </div>
+                  <div>
+                    <h1 class="text-2xl font-bold text-gray-900">
+                      {{ poll.title || 'Loading Poll...' }}
+                    </h1>
+                    <div class="flex items-center space-x-2 mt-1">
+                      <span
+                        class="px-2 py-1 text-xs rounded-full"
+                        :class="poll.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                      >
+                        {{ poll.status }}
+                      </span>
+                      <span class="text-sm text-gray-500">•</span>
+                      <span class="text-sm text-gray-600"
+                        >{{ poll.total_votes || 0 }} total votes</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <div class="flex items-center">
+                  <span
+                    :class="'status-indicator status-' + connectionStatus"
+                  ></span>
+                  <span class="text-sm text-gray-600"
+                    >{{ connectionStatusText }}</span
+                  >
+                </div>
+                <button
+                  @click="exportData"
+                  class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  📊 Export Results
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div v-if="loading" class="text-center py-16">
+            <div
+              class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"
+            ></div>
+            <p class="mt-4 text-lg text-gray-600">Loading poll analytics...</p>
+          </div>
+
+          <div v-else-if="error" class="text-center py-16">
+            <div class="text-red-600 text-6xl mb-4">⚠️</div>
+            <p class="text-xl text-gray-800 mb-2">Error Loading Poll Data</p>
+            <p class="text-gray-600">{{ error }}</p>
+          </div>
+
+          <div v-else-if="showPollSelector" class="max-w-4xl mx-auto">
+            <!-- Poll Selection Interface -->
+            <div
+              class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center"
+            >
+              <div class="text-blue-600 text-6xl mb-4">📊</div>
+              <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                Select a Poll
+              </h2>
+              <p class="text-gray-600 mb-8">
+                Choose a poll to view its detailed analytics
+              </p>
+
+              <div v-if="availablePolls.length === 0" class="text-center py-8">
+                <p class="text-gray-500">No polls available</p>
+              </div>
+
+              <div
+                v-else
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
+                <div
+                  v-for="poll in availablePolls"
+                  :key="poll.name"
+                  @click="selectPoll(poll)"
+                  class="p-6 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
+                >
+                  <div class="text-center">
+                    <div class="text-3xl mb-3">🗳️</div>
+                    <h3 class="font-semibold text-gray-900 mb-2">
+                      {{ poll.title }}
+                    </h3>
+                    <div class="space-y-1 text-sm text-gray-600">
+                      <p>{{ poll.total_responses }} total votes</p>
+                      <p>{{ poll.engagement_rate }}% engagement rate</p>
+                      <span
+                        class="inline-block px-2 py-1 text-xs rounded-full"
+                        :class="poll.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                      >
+                        {{ poll.status }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else>
+            <!-- Key Metrics -->
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            >
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">Total Votes</p>
+                    <p class="text-3xl font-bold text-gray-900">
+                      {{ poll.total_votes }}
+                    </p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">🗳️</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">
+                      Unique Voters
+                    </p>
+                    <p class="text-3xl font-bold text-gray-900">
+                      {{ poll.unique_voters }}
+                    </p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">👥</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">
+                      Participation Rate
+                    </p>
+                    <p class="text-3xl font-bold text-gray-900">
+                      {{ poll.participation_rate }}%
+                    </p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">📈</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="metric-card bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600">Peak Voting</p>
+                    <p class="text-lg font-bold text-gray-900">
+                      {{ poll.peak_voting_time ? poll.peak_voting_time.votes : 0
+                      }}
+                    </p>
+                    <p class="text-xs text-gray-500">
+                      {{ poll.peak_voting_time ? poll.peak_voting_time.date :
+                      'No data' }}
+                    </p>
+                  </div>
+                  <div
+                    class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center"
+                  >
+                    <span class="text-2xl">⭐</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <!-- Vote Distribution Chart -->
+              <div
+                class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+              >
+                <h3 class="text-xl font-bold text-gray-900 mb-6">
+                  Vote Distribution
+                </h3>
+                <div class="chart-container">
+                  <canvas ref="distributionChart"></canvas>
+                </div>
+              </div>
+
+              <!-- Voting Timeline -->
+              <div
+                class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+              >
+                <h3 class="text-xl font-bold text-gray-900 mb-6">
+                  Voting Timeline
+                </h3>
+                <div class="chart-container">
+                  <canvas ref="timelineChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rankings Section -->
+            <div
+              class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100"
+            >
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-xl font-bold text-gray-900">Final Rankings</h3>
+                <p class="text-sm text-gray-600 mt-1">
+                  Ordered by vote count (highest to lowest)
+                </p>
+              </div>
+              <div class="p-6">
+                <div
+                  v-if="rankings.length === 0"
+                  class="text-center py-8 text-gray-500"
+                >
+                  No votes recorded yet
+                </div>
+                <div v-else class="space-y-4">
+                  <div
+                    v-for="(ranking, index) in rankings"
+                    :key="ranking.option_text"
+                    class="flex items-center space-x-4 p-4 rounded-lg border"
+                    :class="ranking.is_winner ? 'border-yellow-300 bg-yellow-50 winner-badge' : 'border-gray-200 bg-gray-50'"
+                  >
+                    <div class="flex-shrink-0">
+                      <div
+                        class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg"
+                        :class="ranking.is_winner ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white' : 'bg-gray-200 text-gray-700'"
+                      >
+                        {{ ranking.rank }}
+                      </div>
+                    </div>
+                    <div class="flex-grow">
+                      <div class="flex items-center space-x-2">
+                        <h4 class="font-semibold text-gray-900">
+                          {{ ranking.option_text }}
+                        </h4>
+                        <span
+                          v-if="ranking.is_winner"
+                          class="winner-badge px-2 py-1 rounded-full text-xs font-medium text-white"
+                        >
+                          🏆 WINNER
+                        </span>
+                      </div>
+                      <div class="flex items-center space-x-4 mt-1">
+                        <span class="text-sm text-gray-600"
+                          >{{ ranking.vote_count }} votes</span
+                        >
+                        <span class="text-sm font-medium text-blue-600"
+                          >{{ ranking.percentage }}%</span
+                        >
+                      </div>
+                      <div class="mt-2">
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                          <div
+                            class="vote-bar bg-gradient-to-r h-3 rounded-full"
+                            :class="ranking.is_winner ? 'from-yellow-400 to-yellow-600' : 'from-blue-400 to-blue-600'"
+                            :style="'width: ' + ranking.percentage + '%'"
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-2xl font-bold text-gray-900">
+                        {{ ranking.vote_count }}
+                      </div>
+                      <div class="text-sm text-gray-500">votes</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Detailed Breakdown Table -->
+            <div
+              class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100"
+            >
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-xl font-bold text-gray-900">
+                  Detailed Breakdown
+                </h3>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Rank
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Option
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Votes
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Percentage
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr
+                      v-for="(item, index) in vote_distribution"
+                      :key="item.option_text"
+                      :class="index === 0 ? 'bg-yellow-50' : ''"
+                    >
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                          :class="index === 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'"
+                        >
+                          #{{ index + 1 }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">
+                          {{ item.option_text }}
+                        </div>
+                      </td>
+                      <td
+                        class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      >
+                        {{ item.vote_count }}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                          <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                            <div
+                              class="bg-blue-600 h-2 rounded-full"
+                              :style="'width: ' + item.percentage + '%'"
+                            ></div>
+                          </div>
+                          <span class="text-sm text-gray-900"
+                            >{{ item.percentage }}%</span
+                          >
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span
+                          v-if="index === 0"
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                          Leading
+                        </span>
+                        <span
+                          v-else
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                        >
+                          Active
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+      {% endraw %}
+    </div>
+
+    <script>
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return {
+            loading: true,
+            error: null,
+            poll: {},
+            vote_distribution: [],
+            rankings: [],
+            timeline: [],
+            charts: {},
+            connectionStatus: "connected",
+            availablePolls: [],
+            showPollSelector: false,
+          };
+        },
+        computed: {
+          connectionStatusText() {
+            const statusMap = {
+              connected: "Live Updates",
+              fallback: "Auto Refresh (5s)",
+              disconnected: "Offline",
+            };
+            return statusMap[this.connectionStatus] || "Unknown";
+          },
+        },
+        async mounted() {
+          // Get poll ID from URL parameter
+          const urlParams = new URLSearchParams(window.location.search);
+          const pollId = urlParams.get("poll_id");
+
+          if (pollId) {
+            await this.loadPollAnalytics(pollId);
+          } else {
+            // No poll ID provided, load all polls for selection
+            await this.loadAvailablePolls();
+          }
+        },
+        methods: {
+          async loadPollAnalytics(pollId) {
+            try {
+              this.loading = true;
+              this.error = null;
+
+              const response = await fetch(
+                `/api/method/pollcast.api.get_poll_analytics?poll_id=${pollId}`
+              );
+              const data = await response.json();
+
+              if (data.message && data.message.error) {
+                this.error = data.message.error;
+              } else if (data.message) {
+                this.poll = data.message.poll;
+                this.vote_distribution = data.message.vote_distribution;
+                this.rankings = data.message.rankings;
+                this.timeline = data.message.timeline;
+
+                // Update page title
+                document.title = `${this.poll.title} - Poll Analytics`;
+
+                // Initialize charts after data is loaded
+                this.$nextTick(() => {
+                  this.initializeCharts();
+                });
+              } else {
+                this.error = "Invalid response format";
+              }
+            } catch (error) {
+              console.error("Error loading poll analytics:", error);
+              this.error = "Failed to load poll data";
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          async loadAvailablePolls() {
+            try {
+              this.loading = true;
+              this.error = null;
+
+              const response = await fetch(
+                "/api/method/pollcast.api.get_polls_analytics"
+              );
+              const data = await response.json();
+
+              if (data.message && Array.isArray(data.message)) {
+                this.availablePolls = data.message;
+                if (this.availablePolls.length === 0) {
+                  this.error =
+                    "No polls found. Create a poll first to view analytics.";
+                } else {
+                  this.showPollSelector = true;
+                }
+              } else {
+                this.error = "Failed to load available polls";
+              }
+            } catch (error) {
+              console.error("Error loading available polls:", error);
+              this.error = "Failed to load polls list";
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          selectPoll(poll) {
+            // Redirect to the same page with poll_id parameter
+            const url = new URL(window.location);
+            url.searchParams.set("poll_id", poll.name);
+            window.location.href = url.toString();
+          },
+
+          initializeCharts() {
+            this.createDistributionChart();
+            this.createTimelineChart();
+          },
+
+          createDistributionChart() {
+            const ctx = this.$refs.distributionChart?.getContext("2d");
+            if (!ctx) return;
+
+            const labels = this.vote_distribution.map(
+              (item) => item.option_text
+            );
+            const data = this.vote_distribution.map((item) => item.vote_count);
+            const backgroundColors = this.vote_distribution.map(
+              (item, index) => {
+                if (index === 0) return "#fbbf24"; // Winner - gold
+                return `hsl(${200 + index * 30}, 70%, 60%)`; // Others - blue variations
+              }
+            );
+
+            this.charts.distribution = new Chart(ctx, {
+              type: "doughnut",
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 2,
+                    borderColor: "#ffffff",
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "bottom",
+                    labels: {
+                      padding: 20,
+                      usePointStyle: true,
+                      font: {
+                        size: 12,
+                      },
+                    },
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: (context) => {
+                        const total = context.dataset.data.reduce(
+                          (a, b) => a + b,
+                          0
+                        );
+                        const percentage = (
+                          (context.parsed / total) *
+                          100
+                        ).toFixed(1);
+                        return `${context.label}: ${context.parsed} votes (${percentage}%)`;
+                      },
+                    },
+                  },
+                },
+                cutout: "60%",
+              },
+            });
+          },
+
+          createTimelineChart() {
+            const ctx = this.$refs.timelineChart?.getContext("2d");
+            if (!ctx || !this.timeline.length) return;
+
+            this.charts.timeline = new Chart(ctx, {
+              type: "line",
+              data: {
+                labels: this.timeline.map((item) => item.date),
+                datasets: [
+                  {
+                    label: "Daily Votes",
+                    data: this.timeline.map((item) => item.votes),
+                    borderColor: "#3b82f6",
+                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: "#3b82f6",
+                    pointBorderColor: "#ffffff",
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false,
+                  },
+                  tooltip: {
+                    mode: "index",
+                    intersect: false,
+                    callbacks: {
+                      title: (tooltipItems) => {
+                        return `Date: ${tooltipItems[0].label}`;
+                      },
+                      label: (context) => {
+                        return `Votes: ${context.parsed.y}`;
+                      },
+                    },
+                  },
+                },
+                scales: {
+                  x: {
+                    display: true,
+                    title: {
+                      display: true,
+                      text: "Date",
+                    },
+                  },
+                  y: {
+                    display: true,
+                    title: {
+                      display: true,
+                      text: "Number of Votes",
+                    },
+                    beginAtZero: true,
+                  },
+                },
+                interaction: {
+                  intersect: false,
+                  mode: "nearest",
+                },
+              },
+            });
+          },
+
+          async exportData() {
+            try {
+              // Create export data
+              const exportData = {
+                poll: this.poll,
+                rankings: this.rankings,
+                vote_distribution: this.vote_distribution,
+                timeline: this.timeline,
+                export_date: new Date().toISOString(),
+              };
+
+              // Create CSV content
+              let csvContent = "Poll Analytics Export\n\n";
+              csvContent += `Poll Title:,${this.poll.title}\n`;
+              csvContent += `Total Votes:,${this.poll.total_votes}\n`;
+              csvContent += `Unique Voters:,${this.poll.unique_voters}\n`;
+              csvContent += `Participation Rate:,${this.poll.participation_rate}%\n`;
+              csvContent += `Export Date:,${new Date().toLocaleString()}\n\n`;
+
+              csvContent += "Rankings\n";
+              csvContent += "Rank,Option,Votes,Percentage\n";
+              this.rankings.forEach((ranking) => {
+                csvContent += `${ranking.rank},${ranking.option_text},${ranking.vote_count},${ranking.percentage}%\n`;
+              });
+
+              // Create and download file
+              const blob = new Blob([csvContent], {
+                type: "text/csv;charset=utf-8;",
+              });
+              const link = document.createElement("a");
+              const url = URL.createObjectURL(blob);
+              link.setAttribute("href", url);
+              link.setAttribute(
+                "download",
+                `poll_analytics_${this.poll.name}_${
+                  new Date().toISOString().split("T")[0]
+                }.csv`
+              );
+              link.style.visibility = "hidden";
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } catch (error) {
+              console.error("Export error:", error);
+              alert("Export failed. Please try again.");
+            }
+          },
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>

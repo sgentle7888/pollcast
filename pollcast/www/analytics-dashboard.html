@@ -30,19 +30,31 @@
         <header class="bg-white shadow-sm border-b">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
-                    <h1 class="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+                    <div class="flex items-center space-x-4">
+                        <h1 class="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+                        <div class="flex space-x-2">
+                            <a href="/poll-analytics-dashboard"
+                               class="bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-blue-700">
+                                📊 Poll Analytics
+                            </a>
+                            <a href="/survey-dashboard-analytics"
+                               class="bg-emerald-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-emerald-700">
+                                📋 Survey Analytics
+                            </a>
+                        </div>
+                    </div>
                     <div class="flex items-center space-x-4">
                         <div class="flex items-center">
                             <span :class="'status-indicator status-' + connectionStatus"></span>
                             {{ connectionStatusText }}
                         </div>
-                        <button @click="toggleAutoRefresh" 
+                        <button @click="toggleAutoRefresh"
                                 :class="autoRefresh ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-700'"
                                 class="px-3 py-1 rounded-md text-sm font-medium transition-colors">
                             🔄
                             Auto-refresh
                         </button>
-                        <button @click="exportData" 
+                        <button @click="exportData"
                                 :disabled="refreshing"
                                 class="bg-rose-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
                             📊
