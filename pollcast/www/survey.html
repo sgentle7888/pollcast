@@ -443,25 +443,33 @@
             this.submitting = true;
 
             try {
+              const payload = {
+                survey_id: this.surveyId,
+                responses: JSON.stringify(this.responses),
+                participant_info: JSON.stringify({
+                  user_agent: navigator.userAgent,
+                  timestamp: new Date().toISOString(),
+                }),
+              };
+
+              console.log("Submitting payload:", payload);
+
               const response = await fetch(
                 "/api/method/pollcast.pollcast.doctype.survey.survey.submit_survey_response",
                 {
                   method: "POST",
                   headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    Accept: "application/json",
                   },
-                  body: JSON.stringify({
-                    survey_id: this.surveyId,
-                    responses: this.responses,
-                    participant_info: {
-                      user_agent: navigator.userAgent,
-                      timestamp: new Date().toISOString(),
-                    },
-                  }),
+                  credentials: "include",
+                  body: new URLSearchParams(payload).toString(),
                 }
               );
 
+              console.log("Response status:", response.status);
               const data = await response.json();
+              console.log("Response data:", data);
 
               if (data.message && data.message.success) {
                 this.submitted = true;
@@ -470,7 +478,11 @@
                   "success"
                 );
               } else {
-                this.error = data.message?.error || "Failed to submit survey";
+                this.error =
+                  data.message?.error ||
+                  data.exception ||
+                  "Failed to submit survey";
+                console.error("Submission error:", data);
               }
             } catch (err) {
               this.error = "Network error. Please try again.";
@@ -513,6 +525,33 @@
                 icon: "/assets/pollcast/images/icon-192.png",
               });
             }
+          },
+
+          getCsrfToken() {
+            // Method 1: Try Frappe global object (most reliable for logged-in users)
+            if (typeof frappe !== "undefined" && frappe.csrf_token) {
+              return frappe.csrf_token;
+            }
+
+            // Method 2: Try to get from meta tag
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken && metaToken.getAttribute("content")) {
+              return metaToken.getAttribute("content");
+            }
+
+            // Method 3: Try to get from cookies
+            const cookies = document.cookie.split(";");
+            for (let cookie of cookies) {
+              const [name, value] = cookie.trim().split("=");
+              if (name === "csrf_token") {
+                return decodeURIComponent(value);
+              }
+            }
+
+            // Method 4: For guest users, make a request to get CSRF token
+            // This is handled automatically by setting credentials
+            console.warn("No CSRF token found");
+            return "";
           },
         },
       }).mount("#app");

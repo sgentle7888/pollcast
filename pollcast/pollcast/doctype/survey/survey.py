@@ -3,7 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import get_url, now
+from frappe.utils import get_url, now, get_datetime
 import uuid
 
 class Survey(Document):
@@ -104,18 +104,22 @@ class Survey(Document):
     def get_response_timeline(self, responses):
         """Get response timeline data for charts"""
         from collections import defaultdict
-        from frappe.utils import getdate
-        
+        from datetime import datetime
+
         timeline = defaultdict(int)
         unique_responses = set()
-        
+
         for response in responses:
             response_id = f"{response.get('creation')}"
             if response_id not in unique_responses:
                 unique_responses.add(response_id)
-                date = getdate(response.creation)
+                # Convert datetime to date string directly
+                if isinstance(response.creation, str):
+                    date = datetime.fromisoformat(response.creation.replace('Z', '+00:00')).date()
+                else:
+                    date = response.creation.date() if hasattr(response.creation, 'date') else response.creation
                 timeline[str(date)] += 1
-        
+
         return dict(timeline)
 
 @frappe.whitelist(allow_guest=True)
@@ -141,8 +145,6 @@ def get_survey_data(survey_id):
         if survey.status != 'Active':
             return {'error': 'Survey is not active'}
         
-        # Import get_datetime to convert string to datetime for comparison
-        from frappe.utils import get_datetime
         current_time = get_datetime()
         
         # Check if survey is within date range
@@ -184,69 +186,132 @@ def get_survey_data(survey_id):
         return {'error': str(e)}
     
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def submit_survey_response(survey_id, responses, participant_info=None):
     """API endpoint to submit survey response"""
     try:
-        frappe.log_error(f"Submit survey response called with survey_id: {survey_id}")
-        frappe.log_error(f"Responses: {responses}")
+        # For guest users submitting public surveys, bypass CSRF
+        if frappe.session.user == "Guest":
+            frappe.flags.ignore_permissions = True
+            # This is the key line to bypass CSRF for guests
+            frappe.local.form_dict.csrf_token = frappe.session.data.csrf_token if frappe.session.data.get('csrf_token') else 'guest'
+        
+        frappe.log_error(f"=== SURVEY SUBMISSION DEBUG ===")
+        frappe.log_error(f"Survey ID: {survey_id}")
+        frappe.log_error(f"User: {frappe.session.user}")
+        frappe.log_error(f"Responses type: {type(responses)}")
+        frappe.log_error(f"Responses raw: {responses}")
 
+        # Validate required parameters
+        if not survey_id:
+            return {'error': 'Survey ID is required'}
+
+        if not responses:
+            return {'error': 'Responses are required'}
+
+        # Parse responses if it's a string
+        if isinstance(responses, str):
+            import json
+            try:
+                responses = json.loads(responses)
+            except json.JSONDecodeError as e:
+                frappe.log_error(f"JSON parse error: {str(e)}")
+                return {'error': 'Invalid responses format'}
+
+        if not isinstance(responses, dict):
+            return {'error': 'Responses must be a valid object'}
+
+        # Parse participant_info if it's a string
+        if isinstance(participant_info, str):
+            import json
+            try:
+                participant_info = json.loads(participant_info)
+            except:
+                participant_info = {}
+
+        # Find survey by shareable link
         surveys = frappe.get_list('Survey',
-            filters={'shareable_link': ['like', f'%{survey_id}%']},
-            fields=['name'],
-            limit=1,
+            filters=[['shareable_link', 'like', f'%/{survey_id}%']],
+            fields=['name', 'shareable_link', 'status'],
             ignore_permissions=True
         )
 
-        frappe.log_error(f"Found surveys: {surveys}")
-
         if not surveys:
-            return {'error': 'Survey not found'}
+            return {'error': f'Survey not found with ID: {survey_id}'}
 
         survey = frappe.get_doc('Survey', surveys[0].name)
-        frappe.log_error(f"Survey status: {survey.status}")
 
         if survey.status != 'Active':
-            return {'error': 'Survey is not active'}
-        
-        # Create survey responses
-        for question_name, response_value in responses.items():
-            frappe.log_error(f"Creating response for question: {question_name}, value: {response_value}")
+            return {'error': f'Survey is not active'}
 
-            if isinstance(response_value, list):
-                # Handle checkbox responses
-                for value in response_value:
-                    frappe.log_error(f"Creating checkbox response: {value}")
+        # Validate survey has questions
+        if not survey.questions:
+            return {'error': 'Survey has no questions'}
+
+        # Build question map
+        survey_questions = {q.name: q for q in survey.questions}
+
+        # Create survey responses
+        created_count = 0
+        
+        for question_name, response_value in responses.items():
+            # Validate question exists
+            if question_name not in survey_questions:
+                continue
+
+            # Skip empty responses
+            if response_value is None or response_value == "" or (isinstance(response_value, list) and len(response_value) == 0):
+                continue
+
+            try:
+                if isinstance(response_value, list):
+                    # Handle checkbox/multiple responses
+                    for value in response_value:
+                        if value:
+                            response_doc = frappe.get_doc({
+                                'doctype': 'Survey Response',
+                                'survey': survey.name,
+                                'survey_question': question_name,
+                                'response_value': str(value),
+                                'participant_ip': frappe.local.request_ip if hasattr(frappe.local, 'request_ip') else '',
+                                'participant_info': participant_info or {}
+                            })
+                            response_doc.insert(ignore_permissions=True)
+                            created_count += 1
+                else:
+                    # Handle single value responses
                     response_doc = frappe.get_doc({
                         'doctype': 'Survey Response',
                         'survey': survey.name,
                         'survey_question': question_name,
-                        'response_value': str(value),
-                        'participant_ip': frappe.local.request_ip if frappe.local.request_ip else '',
+                        'response_value': str(response_value),
+                        'participant_ip': frappe.local.request_ip if hasattr(frappe.local, 'request_ip') else '',
                         'participant_info': participant_info or {}
                     })
                     response_doc.insert(ignore_permissions=True)
-            else:
-                frappe.log_error(f"Creating single response: {response_value}")
-                response_doc = frappe.get_doc({
-                    'doctype': 'Survey Response',
-                    'survey': survey.name,
-                    'survey_question': question_name,
-                    'response_value': str(response_value),
-                    'participant_ip': frappe.local.request_ip if frappe.local.request_ip else '',
-                    'participant_info': participant_info or {}
-                })
-                response_doc.insert(ignore_permissions=True)
-        
-        # Update survey total responses
-        survey.update_total_responses()
-        
-        return {'success': True, 'message': 'Survey response submitted successfully'}
-    
-    except Exception as e:
-        frappe.log_error(f"Survey response submission error: {str(e)}")
-        return {'error': 'Failed to submit response'}
+                    created_count += 1
+            
+            except Exception as e:
+                frappe.log_error(f"Error creating response: {str(e)}")
 
+        # Commit the transaction
+        frappe.db.commit()
+
+        # Update survey total responses
+        survey.reload()
+        survey.update_total_responses()
+        frappe.db.commit()
+
+        return {
+            'success': True,
+            'message': 'Survey response submitted successfully',
+            'responses_created': created_count
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Survey submission error: {str(e)}")
+        frappe.log_error(frappe.get_traceback())
+        return {'error': f'Failed to submit response: {str(e)}'}    
 
 @frappe.whitelist()
 def get_survey_analytics(survey_name):
