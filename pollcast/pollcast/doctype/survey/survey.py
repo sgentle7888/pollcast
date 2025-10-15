@@ -200,7 +200,11 @@ def submit_survey_response(survey_id, responses, participant_info=None):
         frappe.log_error(f"Survey ID: {survey_id}")
         frappe.log_error(f"User: {frappe.session.user}")
         frappe.log_error(f"Responses type: {type(responses)}")
-        frappe.log_error(f"Responses raw: {responses}")
+        frappe.log_error(
+            title="Survey submission - Responses",
+            message=f"Responses raw: {responses}"
+        )
+
 
         # Validate required parameters
         if not survey_id:
