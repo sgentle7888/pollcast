@@ -45,7 +45,6 @@ user_data_fields = [
 
 website_route_rules = [
 	{"from_route": "/poll/<path:poll_id>", "to_route": "poll"},
-	{"from_route": "/survey/<path:survey_id>", "to_route": "survey"},
 	{"from_route": "/engagement/<path:engagement_id>", "to_route": "engagement"},
 ]
 
