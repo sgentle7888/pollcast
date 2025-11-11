@@ -81,12 +81,6 @@
       "fieldtype": "Column Break"
     },
     {
-      "fieldname": "shareable_link",
-      "fieldtype": "Data",
-      "label": "Shareable Link",
-      "read_only": 1
-    },
-    {
       "default": "0",
       "fieldname": "total_responses",
       "fieldtype": "Int",
