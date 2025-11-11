@@ -342,9 +342,8 @@
         },
         methods: {
           getSurveyIdFromUrl() {
-            const path = window.location.pathname;
-            const matches = path.match(/\/survey\/([^\/]+)/);
-            return matches ? matches[1] : null;
+            const params = new URLSearchParams(window.location.search);
+            return params.get("id");
           },
 
           async loadSurvey() {

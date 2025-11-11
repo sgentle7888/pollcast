@@ -119,9 +119,9 @@ def get_survey_data(survey_id):
     try:
         frappe.log_error(f"Looking for survey_id: {survey_id}")
         
-        # Use frappe.get_list with ignore_permissions=True for guest access
+        # Fetch survey by name using query parameter
         surveys = frappe.get_list('Survey', 
-            filters={'shareable_link': ['like', f'%{survey_id}%']},
+            filters={'name': survey_id},
             fields=['name'],
             limit=1,
             ignore_permissions=True
@@ -174,8 +174,7 @@ def get_survey_data(survey_id):
         }
     except Exception as e:
         frappe.log_error(f"Survey data error: {str(e)}")
-        return {'error': str(e)}
-    
+        return {'error': str(e)}    
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def submit_survey_response(survey_id, responses, participant_info=None):
