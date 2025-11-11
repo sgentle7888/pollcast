@@ -7,16 +7,7 @@ from frappe.utils import get_url, now, get_datetime
 import uuid
 
 class Survey(Document):
-    def before_insert(self):
-        if not self.shareable_link:
-            self.shareable_link = self.generate_shareable_link()
-    
-    def generate_shareable_link(self):
-        """Generate a unique shareable link for the survey"""
-        unique_id = str(uuid.uuid4())[:8]
-        base_url = get_url()
-        return f"{base_url}/survey/{unique_id}"
-    
+       
     def validate(self):
         if self.start_date and self.end_date:
             if self.start_date >= self.end_date:
