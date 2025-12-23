@@ -223,10 +223,10 @@ def submit_survey_response(survey_id, responses, participant_info=None):
             except:
                 participant_info = {}
 
-        # Find survey by shareable link
+        # Find survey by name (same as get_survey_data)
         surveys = frappe.get_list('Survey',
-            filters=[['shareable_link', 'like', f'%/{survey_id}%']],
-            fields=['name', 'shareable_link', 'status'],
+            filters={'name': survey_id},
+            fields=['name', 'status'],
             ignore_permissions=True
         )
 
