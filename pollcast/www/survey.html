@@ -470,13 +470,13 @@
               const data = await response.json();
               console.log("Response data:", data);
 
-              if (data.message && data.message.success) {
-                this.submitted = true;
-                this.showNotification(
-                  "Survey submitted successfully!",
-                  "success"
-                );
-              } else if (data.success) {
+              // Check if submission was successful
+              const isSuccess =
+                (data.message && data.message.success) ||
+                data.success ||
+                (data.message && !data.message.error && !data.error);
+
+              if (isSuccess) {
                 this.submitted = true;
                 this.showNotification(
                   "Survey submitted successfully!",
