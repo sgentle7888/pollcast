@@ -470,11 +470,13 @@
               const data = await response.json();
               console.log("Response data:", data);
 
+              // Frappe wraps responses in a 'message' key
+              const messageData = data.message || data;
+
               // Check if submission was successful
               const isSuccess =
-                (data.message && data.message.success) ||
-                data.success ||
-                (data.message && !data.message.error && !data.error);
+                response.ok &&
+                (messageData.success === true || !messageData.error);
 
               if (isSuccess) {
                 this.submitted = true;
@@ -484,7 +486,7 @@
                 );
               } else {
                 this.error =
-                  data.message?.error ||
+                  messageData.error ||
                   data.error ||
                   data.exception ||
                   "Failed to submit survey";
