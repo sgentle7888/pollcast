@@ -476,9 +476,16 @@
                   "Survey submitted successfully!",
                   "success"
                 );
+              } else if (data.success) {
+                this.submitted = true;
+                this.showNotification(
+                  "Survey submitted successfully!",
+                  "success"
+                );
               } else {
                 this.error =
                   data.message?.error ||
+                  data.error ||
                   data.exception ||
                   "Failed to submit survey";
                 console.error("Submission error:", data);
