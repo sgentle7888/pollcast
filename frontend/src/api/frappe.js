@@ -8,7 +8,7 @@
 export function getCsrfToken() {
   // First try the meta tag, then the window global injected by the HTML page
   const meta = document.querySelector('meta[name="frappe-csrf-token"]');
-  return meta ? meta.getAttribute("content") : (window.frappe_csrf_token || "");
+  return meta ? meta.getAttribute("content") : window.frappe_csrf_token || "";
 }
 
 /**
@@ -25,7 +25,7 @@ export async function frappeCall(method, args = {}) {
   for (const [key, value] of Object.entries(args)) {
     formData.append(
       key,
-      typeof value === "object" ? JSON.stringify(value) : String(value)
+      typeof value === "object" ? JSON.stringify(value) : String(value),
     );
   }
 
@@ -40,7 +40,7 @@ export async function frappeCall(method, args = {}) {
 
   if (response.status === 403) {
     window.location.href = `/login?redirect-to=${encodeURIComponent(
-      window.location.pathname + window.location.hash
+      window.location.pathname + window.location.hash,
     )}`;
     throw new Error("Unauthorised");
   }
@@ -62,17 +62,24 @@ export async function frappeCall(method, args = {}) {
 /**
  * GET a Frappe REST resource list.
  */
-export async function frappeGetList(doctype, filters = {}, fields = ["name"], opts = {}) {
+export async function frappeGetList(
+  doctype,
+  filters = {},
+  fields = ["name"],
+  opts = {},
+) {
   const params = new URLSearchParams({
     fields: JSON.stringify(fields),
-    filters: JSON.stringify(Object.entries(filters).map(([k, v]) => [doctype, k, "=", v])),
+    filters: JSON.stringify(
+      Object.entries(filters).map(([k, v]) => [doctype, k, "=", v]),
+    ),
     limit_page_length: String(opts.limit || 200),
     order_by: opts.orderBy || "modified desc",
   });
 
   const response = await fetch(
     `/api/resource/${encodeURIComponent(doctype)}?${params}`,
-    { headers: { "X-Frappe-CSRF-Token": getCsrfToken() } }
+    { headers: { "X-Frappe-CSRF-Token": getCsrfToken() } },
   );
 
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
