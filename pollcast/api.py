@@ -8,6 +8,82 @@ from frappe.utils.response import Response
 from collections import defaultdict
 
 @frappe.whitelist()
+def get_user_info():
+    """Get basic info + roles for the logged-in user, used by the portal auth store"""
+    try:
+        user = frappe.session.user
+        user_doc = frappe.get_doc('User', user)
+        roles = frappe.get_roles(user)
+
+        return {
+            'name': user_doc.name,
+            'email': user_doc.email,
+            'full_name': user_doc.full_name,
+            'user_image': user_doc.user_image,
+            'roles': roles,
+            'is_poll_manager': 'Poll Manager' in roles or 'System Manager' in roles,
+            'is_guest': user == 'Guest'
+        }
+    except Exception as e:
+        frappe.log_error(f"Get user info error: {str(e)}")
+        return {'error': str(e)}
+
+@frappe.whitelist()
+def get_polls():
+    """List polls for the portal dashboard/list views"""
+    try:
+        polls = frappe.get_list('Poll',
+            fields=['name', 'title', 'description', 'status', 'start_date',
+                    'end_date', 'total_responses', 'shareable_link', 'modified'],
+            order_by='modified desc',
+            limit_page_length=0
+        )
+        return polls
+    except Exception as e:
+        frappe.log_error(f"Get polls error: {str(e)}")
+        return {'error': str(e)}
+
+@frappe.whitelist()
+def get_surveys():
+    """List surveys for the portal dashboard/list views"""
+    try:
+        surveys = frappe.get_list('Survey',
+            fields=['name', 'title', 'description', 'status', 'start_date',
+                    'end_date', 'total_responses', 'multi_page', 'modified'],
+            order_by='modified desc',
+            limit_page_length=0
+        )
+        return surveys
+    except Exception as e:
+        frappe.log_error(f"Get surveys error: {str(e)}")
+        return {'error': str(e)}
+
+@frappe.whitelist()
+def get_survey(survey_name):
+    """Get a single survey document for the results page header"""
+    try:
+        if not survey_name:
+            return {'error': 'Survey name is required'}
+
+        if not frappe.db.exists('Survey', survey_name):
+            return {'error': 'Survey not found'}
+
+        survey = frappe.get_doc('Survey', survey_name)
+        return {
+            'name': survey.name,
+            'title': survey.title,
+            'description': survey.description,
+            'status': survey.status,
+            'multi_page': survey.multi_page,
+            'start_date': survey.start_date,
+            'end_date': survey.end_date,
+            'total_responses': survey.total_responses
+        }
+    except Exception as e:
+        frappe.log_error(f"Get survey error: {str(e)}")
+        return {'error': str(e)}
+
+@frappe.whitelist()
 def get_dashboard_summary():
     """Get dashboard summary statistics"""
     try:
