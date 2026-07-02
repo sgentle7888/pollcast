@@ -823,7 +823,7 @@ def export_analytics(options=None, format='csv'):
         frappe.log_error(f"Export error: {str(e)}")
         frappe.throw(_("Export failed: {0}").format(str(e)))
 
-        
+
 def get_response_details():
     """Get detailed response data"""
     try:
@@ -1012,3 +1012,174 @@ def sse_surveys_analytics():
                 break
 
     return Response(event_stream(), mimetype='text/event-stream')
+
+
+@frappe.whitelist()
+def create_poll(title, description=None, start_date=None, end_date=None, options=None):
+    """Create a new poll. Each option becomes one Poll Question row (single-choice vote)."""
+    try:
+        if isinstance(options, str):
+            options = json.loads(options)
+        options = options or []
+        if len(options) < 2:
+            return {'error': 'A poll needs at least 2 options'}
+
+        start_date = start_date if start_date and start_date != 'null' else None
+        end_date = end_date if end_date and end_date != 'null' else None
+
+        poll = frappe.get_doc({
+            'doctype': 'Poll',
+            'title': title,
+            'description': description,
+            'status': 'Draft',
+            'start_date': start_date,
+            'end_date': end_date,
+            'questions': [
+                {'question_text': opt, 'question_type': 'Single Choice', 'options': opt}
+                for opt in options
+            ]
+        })
+        poll.insert()
+        frappe.db.commit()
+        return {'name': poll.name}
+    except Exception as e:
+        frappe.log_error(f"Create poll error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def create_survey(title, description=None, start_date=None, end_date=None, questions=None):
+    try:
+        if isinstance(questions, str):
+            questions = json.loads(questions)
+        questions = questions or []
+        if not questions:
+            return {'error': 'A survey needs at least one question'}
+
+        start_date = start_date if start_date and start_date != 'null' else None
+        end_date = end_date if end_date and end_date != 'null' else None
+
+        survey_questions = []
+        for q in questions:
+            row = {
+                'question_text': q.get('question_text'),
+                'question_type': q.get('question_type'),
+                'required': 1 if q.get('required') else 0,
+            }
+            opts = q.get('options') or []
+            if opts:
+                row['options'] = '\n'.join(opts)
+            survey_questions.append(row)
+
+        survey = frappe.get_doc({
+            'doctype': 'Survey',
+            'title': title,
+            'description': description,
+            'status': 'Draft',
+            'start_date': start_date,
+            'end_date': end_date,
+            'questions': survey_questions
+        })
+        survey.insert()
+        frappe.db.commit()
+        return {'name': survey.name}
+    except Exception as e:
+        frappe.log_error(f"Create survey error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def submit_poll_response(poll_name, option_name):
+    """option_name is the Poll Question row .name the user selected (see PollVote.vue)."""
+    try:
+        if not frappe.db.exists('Poll', poll_name):
+            return {'error': 'Poll not found'}
+        poll = frappe.get_doc('Poll', poll_name)
+        if poll.status != 'Active':
+            return {'error': 'Poll is not active'}
+
+        frappe.get_doc({
+            'doctype': 'Poll Response',
+            'poll': poll_name,
+            'poll_question': option_name,
+            'response_value': option_name,
+            'participant_ip': frappe.local.request_ip or '',
+        }).insert(ignore_permissions=True)
+        frappe.db.commit()
+
+        poll.update_total_responses()
+        frappe.db.commit()
+        return {'success': True}
+    except Exception as e:
+        frappe.log_error(f"Submit poll response error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def submit_survey_response(survey_name, responses, respondent_info=None):
+    try:
+        if isinstance(responses, str):
+            responses = json.loads(responses)
+        if isinstance(respondent_info, str):
+            try:
+                respondent_info = json.loads(respondent_info)
+            except Exception:
+                respondent_info = {}
+
+        if not frappe.db.exists('Survey', survey_name):
+            return {'error': 'Survey not found'}
+        survey = frappe.get_doc('Survey', survey_name)
+        if survey.status != 'Active':
+            return {'error': 'Survey is not active'}
+
+        valid_questions = {q.name for q in survey.questions}
+        created = 0
+        for question_name, value in responses.items():
+            if question_name == '__comments__' or question_name not in valid_questions:
+                continue
+            if value in (None, ''):
+                continue
+            frappe.get_doc({
+                'doctype': 'Survey Response',
+                'survey': survey_name,
+                'survey_question': question_name,
+                'response_value': str(value),
+                'participant_ip': frappe.local.request_ip or '',
+                'participant_info': respondent_info or {}
+            }).insert(ignore_permissions=True)
+            created += 1
+
+        frappe.db.commit()
+        survey.reload()
+        survey.update_total_responses()
+        frappe.db.commit()
+        return {'success': True, 'responses_created': created}
+    except Exception as e:
+        frappe.log_error(f"Submit survey response error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def update_poll_status(poll_name, status):
+    try:
+        if status not in ['Draft', 'Active', 'Closed', 'Archived']:
+            return {'error': 'Invalid status'}
+        frappe.db.set_value('Poll', poll_name, 'status', status)
+        frappe.db.commit()
+        return {'success': True}
+    except Exception as e:
+        frappe.log_error(f"Update poll status error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def update_survey_status(survey_name, status):
+    try:
+        if status not in ['Draft', 'Active', 'Closed', 'Archived']:
+            return {'error': 'Invalid status'}
+        frappe.db.set_value('Survey', survey_name, 'status', status)
+        frappe.db.commit()
+        return {'success': True}
+    except Exception as e:
+        frappe.log_error(f"Update survey status error: {str(e)}")
+        return {'error': str(e)}
