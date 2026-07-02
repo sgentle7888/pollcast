@@ -1010,4 +1010,4 @@ def sse_surveys_analytics():
                 yield f"data: {json.dumps(error_data)}\n\n"
                 break
 
-    return Response(event_stream(), mimetype='text/event-stream')
+    
