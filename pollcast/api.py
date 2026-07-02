@@ -790,39 +790,40 @@ def calculate_avg_completion_time(survey_responses, survey):
         return None
     
 @frappe.whitelist()
-def export_analytics():
+def export_analytics(options=None, format='csv'):
     """Export analytics data in various formats"""
     try:
-        # Get request data
-        data = json.loads(frappe.request.data)
-        options = data.get('options', {})
-        format_type = data.get('format', 'csv')
-        
+        if isinstance(options, str):
+            options = json.loads(options)
+        options = options or {}
+        format_type = format
+
         export_data = {}
-        
+
         if options.get('polls'):
             export_data['polls'] = get_polls_analytics()
-        
+
         if options.get('surveys'):
             export_data['surveys'] = get_surveys_analytics()
-        
+
         if options.get('responses'):
             export_data['responses'] = get_response_details()
-        
+
         if options.get('analytics'):
             export_data['summary'] = get_dashboard_summary()
-        
+
         if format_type == 'csv':
             return generate_csv_export(export_data)
         elif format_type == 'excel':
             return generate_excel_export(export_data)
         elif format_type == 'pdf':
             return generate_pdf_export(export_data)
-        
+
     except Exception as e:
         frappe.log_error(f"Export error: {str(e)}")
         frappe.throw(_("Export failed: {0}").format(str(e)))
 
+        
 def get_response_details():
     """Get detailed response data"""
     try:
