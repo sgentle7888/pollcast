@@ -317,16 +317,34 @@ const renderCharts = () => {
 const exportData = async (format) => {
   exporting.value = true;
   try {
-    // Basic export triggers standard file download behavior from Frappe endpoint
     const result = await frappeCall("pollcast.api.export_analytics", {
       options: { surveys: true, responses: true },
       format,
     });
-    if (result) {
-      toast?.("CSV Generated successfully!", "success");
+    if (result && result.error) {
+      toast?.("Export Failed: " + result.error, "error");
+      return;
+    }
+    if (result && result.content) {
+      // Decode base64 and trigger a browser download
+      const byteChars = atob(result.content);
+      const byteNumbers = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNumbers[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteNumbers], { type: result.mime || "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.filename || "pollcast_analytics.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast?.("CSV downloaded successfully!", "success");
     }
   } catch (e) {
-    toast?.("Export failed: " + e.message, "error");
+    toast?.("Export Failed: " + e.message, "error");
   } finally {
     exporting.value = false;
   }

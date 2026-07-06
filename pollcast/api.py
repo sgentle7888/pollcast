@@ -59,8 +59,48 @@ def get_surveys():
         return {'error': str(e)}
 
 @frappe.whitelist()
+def get_poll(poll_name):
+    """Get a single poll with its questions/options for the PollVote page"""
+    try:
+        if not poll_name:
+            return {'error': 'Poll name is required'}
+
+        if not frappe.db.exists('Poll', poll_name):
+            return {'error': 'Poll not found'}
+
+        poll = frappe.get_doc('Poll', poll_name)
+
+        if poll.status != 'Active':
+            return {'error': 'Poll is not active'}
+
+        questions = []
+        for q in poll.questions:
+            q_data = {
+                'name': q.name,
+                'question_text': q.question_text,
+                'question_type': q.question_type,
+            }
+            if q.options:
+                q_data['options'] = [
+                    opt.strip() for opt in q.options.split('\n') if opt.strip()
+                ]
+            questions.append(q_data)
+
+        return {
+            'name': poll.name,
+            'title': poll.title,
+            'description': poll.description,
+            'status': poll.status,
+            'questions': questions,
+        }
+    except Exception as e:
+        frappe.log_error(f"Get poll error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
 def get_survey(survey_name):
-    """Get a single survey document for the results page header"""
+    """Get a single survey document including questions for the Take/Results pages"""
     try:
         if not survey_name:
             return {'error': 'Survey name is required'}
@@ -69,15 +109,35 @@ def get_survey(survey_name):
             return {'error': 'Survey not found'}
 
         survey = frappe.get_doc('Survey', survey_name)
+
+        questions = []
+        for q in survey.questions:
+            q_data = {
+                'name': q.name,
+                'question_text': q.question_text,
+                'question_type': q.question_type,
+                'required': q.required,
+                'page_number': q.page_number or 1,
+            }
+            if q.question_type in ['Multiple Choice', 'Checkbox']:
+                q_data['options'] = [
+                    opt.strip() for opt in (q.options or '').split('\n') if opt.strip()
+                ]
+            elif q.question_type == 'Rating Scale':
+                q_data['scale_min'] = q.scale_min or 1
+                q_data['scale_max'] = q.scale_max or 5
+            questions.append(q_data)
+
         return {
             'name': survey.name,
             'title': survey.title,
             'description': survey.description,
             'status': survey.status,
             'multi_page': survey.multi_page,
-            'start_date': survey.start_date,
-            'end_date': survey.end_date,
-            'total_responses': survey.total_responses
+            'start_date': str(survey.start_date) if survey.start_date else None,
+            'end_date': str(survey.end_date) if survey.end_date else None,
+            'total_responses': survey.total_responses,
+            'questions': questions,
         }
     except Exception as e:
         frappe.log_error(f"Get survey error: {str(e)}")
@@ -595,12 +655,18 @@ def get_survey_analytics(survey_id):
                 question_data['most_popular_option'] = max(option_counts, key=option_counts.get) if option_counts else None
 
             elif question.question_type == 'Rating Scale':
-                # Calculate rating statistics
-                ratings = [float(r) for r in responses_for_question if r.isdigit()]
+                # Calculate rating statistics — handle int and decimal strings, skip N/A
+                ratings = []
+                for r in responses_for_question:
+                    try:
+                        val = float(r)
+                        ratings.append(val)
+                    except (ValueError, TypeError):
+                        pass  # Skip N/A and non-numeric
+                avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else 0
+                question_data['average_rating'] = avg_rating
+                question_data['rating_distribution'] = get_rating_distribution(ratings)
                 if ratings:
-                    avg_rating = round(sum(ratings) / len(ratings), 2)
-                    question_data['average_rating'] = avg_rating
-                    question_data['rating_distribution'] = get_rating_distribution(ratings)
                     question_data['highest_rating'] = max(ratings)
                     question_data['lowest_rating'] = min(ratings)
 
@@ -791,7 +857,10 @@ def calculate_avg_completion_time(survey_responses, survey):
     
 @frappe.whitelist()
 def export_analytics(options=None, format='csv'):
-    """Export analytics data in various formats"""
+    """Export analytics data in various formats.
+    Returns a JSON-safe object with base64-encoded file content so the
+    Vue frontend can trigger a browser download without JSON.parse errors.
+    """
     try:
         if isinstance(options, str):
             options = json.loads(options)
@@ -812,16 +881,21 @@ def export_analytics(options=None, format='csv'):
         if options.get('analytics'):
             export_data['summary'] = get_dashboard_summary()
 
-        if format_type == 'csv':
-            return generate_csv_export(export_data)
-        elif format_type == 'excel':
-            return generate_excel_export(export_data)
-        elif format_type == 'pdf':
-            return generate_pdf_export(export_data)
+        csv_content = build_csv_string(export_data)
+
+        import base64
+        filename = f"pollcast_analytics_{now().split()[0]}.csv"
+        encoded = base64.b64encode(csv_content.encode('utf-8')).decode('ascii')
+        return {
+            'success': True,
+            'filename': filename,
+            'content': encoded,
+            'mime': 'text/csv',
+        }
 
     except Exception as e:
         frappe.log_error(f"Export error: {str(e)}")
-        frappe.throw(_("Export failed: {0}").format(str(e)))
+        return {'error': str(e)}
 
 
 def get_response_details():
@@ -865,14 +939,14 @@ def get_response_details():
         frappe.log_error(f"Response details error: {str(e)}")
         return {}
 
-def generate_csv_export(data):
-    """Generate CSV export"""
+def build_csv_string(data):
+    """Build a CSV string from analytics data and return it."""
     import csv
     import io
-    
+
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write summary
     if 'summary' in data:
         writer.writerow(['=== SUMMARY ==='])
@@ -880,40 +954,37 @@ def generate_csv_export(data):
         for key, value in summary.items():
             writer.writerow([key.replace('_', ' ').title(), value])
         writer.writerow([])
-    
+
     # Write polls data
     if 'polls' in data:
         writer.writerow(['=== POLLS ==='])
         writer.writerow(['Title', 'Total Responses', 'Engagement Rate'])
-        for poll in data['polls']:
-            writer.writerow([poll['title'], poll['total_responses'], poll['engagement_rate']])
+        for poll in (data['polls'] or []):
+            writer.writerow([poll.get('title', ''), poll.get('total_responses', 0), poll.get('engagement_rate', 0)])
         writer.writerow([])
-    
+
     # Write surveys data
     if 'surveys' in data:
         writer.writerow(['=== SURVEYS ==='])
         writer.writerow(['Title', 'Total Responses', 'Completion Rate'])
-        for survey in data['surveys']:
-            writer.writerow([survey['title'], survey['total_responses'], survey['completion_rate']])
+        for survey in (data['surveys'] or []):
+            writer.writerow([survey.get('title', ''), survey.get('total_responses', 0), survey.get('completion_rate', 0)])
         writer.writerow([])
-    
+
     csv_content = output.getvalue()
     output.close()
-    
-    # Return as file response
-    frappe.local.response.filename = f"pollcast_analytics_{now().split()[0]}.csv"
-    frappe.local.response.filecontent = csv_content
-    frappe.local.response.type = "download"
+    return csv_content
+
+
+# Keep old helpers as no-ops to avoid breaking any existing callers
+def generate_csv_export(data):
+    return build_csv_string(data)
 
 def generate_excel_export(data):
-    """Generate Excel export (simplified - would need openpyxl in real implementation)"""
-    # For now, return CSV format
-    return generate_csv_export(data)
+    return build_csv_string(data)
 
 def generate_pdf_export(data):
-    """Generate PDF export (simplified - would need reportlab in real implementation)"""
-    # For now, return CSV format
-    return generate_csv_export(data)
+    return build_csv_string(data)
 
 @frappe.whitelist()
 def sse_analytics():

@@ -58,10 +58,15 @@ class Survey(Document):
                 })
             
             elif question.question_type == 'Rating Scale':
-                # Calculate average rating
-                ratings = [float(r) for r in responses_for_question if r.isdigit()]
+                # Calculate average rating — handle int and decimal strings, skip N/A
+                ratings = []
+                for r in responses_for_question:
+                    try:
+                        ratings.append(float(r))
+                    except (ValueError, TypeError):
+                        pass
                 avg_rating = sum(ratings) / len(ratings) if ratings else 0
-                
+
                 questions_data.append({
                     'question': question.question_text,
                     'type': question.question_type,
