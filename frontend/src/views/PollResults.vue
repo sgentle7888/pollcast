@@ -37,14 +37,14 @@
           <div class="stat-icon stat-icon-accent">👥</div>
           <div class="stat-body">
             <span class="stat-label">Total Votes</span>
-            <span class="stat-value">{{ analytics.poll.total_responses }}</span>
+            <span class="stat-value">{{ analytics.poll.total_votes }}</span>
           </div>
         </div>
         <div class="stat-card card">
           <div class="stat-icon stat-icon-violet">📈</div>
           <div class="stat-body">
             <span class="stat-label">Engagement Score</span>
-            <span class="stat-value">{{ analytics.poll.engagement_rate || 0 }}</span>
+            <span class="stat-value">{{ analytics.poll.participation_rate || 0 }}%</span>
           </div>
         </div>
         <div class="stat-card card" v-if="peakTime">
@@ -116,11 +116,11 @@ const donutChartRef = ref(null);
 let donutChart = null;
 
 const sortedOptions = computed(() => {
-  if (!analytics.value || !analytics.value.options) return [];
-  return [...analytics.value.options].sort((a, b) => b.vote_count - a.vote_count);
+  if (!analytics.value || !analytics.value.vote_distribution) return [];
+  return [...analytics.value.vote_distribution].sort((a, b) => b.vote_count - a.vote_count);
 });
 
-const peakTime = computed(() => analytics.value?.peak_time);
+const peakTime = computed(() => analytics.value?.poll?.peak_voting_time);
 
 onMounted(async () => {
   try {
@@ -155,11 +155,11 @@ const getBarGradient = (idx) => {
 };
 
 const renderChart = () => {
-  if (!donutChartRef.value || !analytics.value || !analytics.value.options) return;
+  if (!donutChartRef.value || !analytics.value || !analytics.value.vote_distribution) return;
   if (donutChart) donutChart.destroy();
 
-  const labels = analytics.value.options.map((o) => o.option_text);
-  const data = analytics.value.options.map((o) => o.vote_count);
+  const labels = analytics.value.vote_distribution.map((o) => o.option_text);
+  const data = analytics.value.vote_distribution.map((o) => o.vote_count);
 
   donutChart = new Chart(donutChartRef.value.getContext("2d"), {
     type: "doughnut",
