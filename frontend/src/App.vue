@@ -1,21 +1,23 @@
 <template>
   <div class="app-shell">
-    <!-- Sidebar -->
+    <!-- Sidebar (hidden for guests on shared-link routes) -->
     <AppSidebar
+      v-if="!isGuestMode"
       v-model="mobileOpen"
       @collapse="onCollapse"
     />
 
     <!-- Mobile sidebar overlay -->
     <div
+      v-if="!isGuestMode"
       :class="['sidebar-overlay', { visible: mobileOpen }]"
       @click="mobileOpen = false"
     ></div>
 
     <!-- Main Layout -->
-    <div :class="['main-layout', { 'sidebar-collapsed': sidebarCollapsed }]">
-      <!-- Top Header Bar -->
-      <header class="top-bar">
+    <div :class="['main-layout', { 'sidebar-collapsed': sidebarCollapsed, 'guest-mode': isGuestMode }]">
+      <!-- Top Header Bar (hidden for guests on shared-link routes) -->
+      <header v-if="!isGuestMode" class="top-bar">
         <div class="top-bar-inner">
           <!-- Mobile hamburger -->
           <button class="hamburger-btn btn btn-ghost btn-icon" @click="mobileOpen = !mobileOpen">
@@ -106,6 +108,12 @@ const onCollapse = (val) => { sidebarCollapsed.value = val; };
 
 const pageTitle = computed(() => route.meta?.title || "Pollcast");
 
+// Guest mode: guest user on an explicitly guest-allowed route
+// → strip sidebar, header, and nav so only the voting/survey form is shown
+const isGuestMode = computed(() =>
+  auth.isGuest && !!route.meta?.allowGuest
+);
+
 // Toast system
 const toasts = ref([]);
 let toastId = 0;
@@ -131,6 +139,13 @@ provide("toast", addToast);
   min-height: 100vh;
   position: relative;
 }
+
+/* Guest mode: no sidebar, no top bar — main layout takes full width */
+.main-layout.guest-mode {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
 
 /* Top Header Bar */
 .top-bar {

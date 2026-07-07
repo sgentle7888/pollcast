@@ -280,7 +280,8 @@ def get_poll_analytics(poll_id):
         unique_voters = len(unique_ips)
 
         # Calculate participation rate (simplified)
-        participation_rate = min((unique_voters / max(poll.expected_responses or 100, 1)) * 100, 100)
+        expected = getattr(poll, 'expected_responses', None) or 100
+        participation_rate = min((unique_voters / max(expected, 1)) * 100, 100)
 
         # Get vote distribution by option
         option_votes = {}
