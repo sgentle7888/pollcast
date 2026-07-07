@@ -7,11 +7,23 @@ import time
 from frappe.utils.response import Response
 from collections import defaultdict
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_user_info():
-    """Get basic info + roles for the logged-in user, used by the portal auth store"""
+    """Get basic info + roles for the logged-in user, used by the portal auth store.
+    Returns safe guest defaults when called by an unauthenticated user.
+    """
     try:
         user = frappe.session.user
+        if user == 'Guest':
+            return {
+                'name': 'Guest',
+                'email': '',
+                'full_name': 'Guest',
+                'user_image': None,
+                'roles': [],
+                'is_poll_manager': False,
+                'is_guest': True
+            }
         user_doc = frappe.get_doc('User', user)
         roles = frappe.get_roles(user)
 
@@ -22,7 +34,7 @@ def get_user_info():
             'user_image': user_doc.user_image,
             'roles': roles,
             'is_poll_manager': 'Poll Manager' in roles or 'System Manager' in roles,
-            'is_guest': user == 'Guest'
+            'is_guest': False
         }
     except Exception as e:
         frappe.log_error(f"Get user info error: {str(e)}")
@@ -58,7 +70,7 @@ def get_surveys():
         frappe.log_error(f"Get surveys error: {str(e)}")
         return {'error': str(e)}
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_poll(poll_name):
     """Get a single poll with its questions/options for the PollVote page"""
     try:
@@ -98,7 +110,7 @@ def get_poll(poll_name):
         return {'error': str(e)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_survey(survey_name):
     """Get a single survey document including questions for the Take/Results pages"""
     try:
@@ -281,7 +293,7 @@ def get_poll_analytics(poll_id):
         # Get option details and create distribution
         vote_distribution = []
         for option_id, vote_count in option_votes.items():
-            option = frappe.get_doc('Poll Option', option_id)
+            option = frappe.get_doc('Poll Option', option_id, ignore_permissions=True)
             percentage = (vote_count / len(poll_responses)) * 100
             vote_distribution.append({
                 'option_id': option_id,
@@ -1159,7 +1171,7 @@ def create_survey(title, description=None, start_date=None, end_date=None, quest
         return {'error': str(e)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def submit_poll_response(poll_name, option_name):
     """option_name is the Poll Question row .name the user selected (see PollVote.vue)."""
     try:
@@ -1186,7 +1198,7 @@ def submit_poll_response(poll_name, option_name):
         return {'error': str(e)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def submit_survey_response(survey_name, responses, respondent_info=None):
     try:
         if isinstance(responses, str):

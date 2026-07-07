@@ -213,13 +213,59 @@
           </button>
         </div>
       </div>
+      <!-- Step 4: Success + Shareable Link -->
+      <div v-if="step === 4" class="card wizard-step animate-fade-in-up success-screen">
+        <div class="success-icon-wrap">
+          <div class="success-icon-circle">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <h3 class="step-heading" style="text-align: center;">{{ type === 'poll' ? 'Poll' : 'Survey' }} Created! 🎉</h3>
+        <p class="text-secondary text-sm" style="text-align: center; margin-bottom: 1.75rem;">
+          <strong>{{ form.title }}</strong> is ready. Share the link below with your participants.
+        </p>
+
+        <!-- Shareable Link Box -->
+        <div class="share-link-box">
+          <div class="share-link-label text-xs font-semibold text-secondary" style="margin-bottom: 0.5rem;">🔗 Shareable Link</div>
+          <div class="share-link-row">
+            <input
+              type="text"
+              class="form-control share-link-input"
+              :value="shareUrl"
+              readonly
+              @click="$event.target.select()"
+            />
+            <button
+              class="btn btn-primary share-copy-btn"
+              :class="{ copied: linkCopied }"
+              @click="copyLink"
+            >
+              <svg v-if="!linkCopied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              {{ linkCopied ? 'Copied!' : 'Copy Link' }}
+            </button>
+          </div>
+          <p class="text-xs text-secondary" style="margin-top: 0.5rem;">
+            Guest users can open this link directly — no login required.
+          </p>
+        </div>
+
+        <div class="wizard-nav" style="justify-content: center; gap: 1rem; margin-top: 1.75rem; flex-wrap: wrap;">
+          <button class="btn btn-ghost" @click="createAnother">+ Create Another</button>
+          <RouterLink
+            :to="(type === 'poll' ? '/polls/' : '/surveys/') + createdName"
+            class="btn btn-secondary"
+          >View {{ type === 'poll' ? 'Poll' : 'Survey' }}</RouterLink>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, inject } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, RouterLink } from "vue-router";
 import { frappeCall } from "../api/frappe.js";
 
 const router = useRouter();
@@ -228,6 +274,45 @@ const toast  = inject("toast");
 const step = ref(0);
 const type = ref("poll");
 const submitting = ref(false);
+const createdName = ref("");
+const linkCopied = ref(false);
+
+const shareUrl = computed(() => {
+  if (!createdName.value) return "";
+  const base = window.location.origin;
+  const path = type.value === "poll"
+    ? `/pollcast#/polls/${createdName.value}`
+    : `/pollcast#/surveys/${createdName.value}`;
+  return base + path;
+});
+
+const copyLink = async () => {
+  try {
+    await navigator.clipboard.writeText(shareUrl.value);
+    linkCopied.value = true;
+    setTimeout(() => { linkCopied.value = false; }, 2000);
+  } catch {
+    // Fallback for older browsers
+    const el = document.querySelector(".share-link-input");
+    if (el) { el.select(); document.execCommand("copy"); }
+    linkCopied.value = true;
+    setTimeout(() => { linkCopied.value = false; }, 2000);
+  }
+};
+
+const createAnother = () => {
+  createdName.value = "";
+  linkCopied.value = false;
+  form.value = {
+    title: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    options: [{ text: "" }, { text: "" }],
+    questions: [{ text: "", type: "Rating Scale", required: true, options: ["", ""] }],
+  };
+  step.value = 0;
+};
 
 const wizardSteps = computed(() =>
   type.value === "poll"
@@ -274,7 +359,8 @@ const submit = async () => {
       });
       if (result?.name) {
         toast?.("Poll created successfully!", "success");
-        router.push("/polls/" + result.name);
+        createdName.value = result.name;
+        step.value = 4;
       }
     } else {
       result = await frappeCall("pollcast.api.create_survey", {
@@ -293,7 +379,8 @@ const submit = async () => {
       });
       if (result?.name) {
         toast?.("Survey created successfully!", "success");
-        router.push("/surveys/" + result.name);
+        createdName.value = result.name;
+        step.value = 4;
       }
     }
     if (result?.error) toast?.(result.error, "error");
@@ -431,4 +518,75 @@ const submit = async () => {
   .form-grid  { grid-template-columns: 1fr; }
   .form-grid > * { grid-column: span 1 !important; }
 }
+
+/* ── Success Screen (Step 4) ── */
+.success-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 2rem;
+  max-width: 560px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.success-icon-wrap {
+  margin-bottom: 1.25rem;
+}
+
+.success-icon-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 0 32px var(--accent-glow);
+  animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes successPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.share-link-box {
+  width: 100%;
+  padding: 1.25rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+}
+
+.share-link-row {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.share-link-input {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: text;
+}
+
+.share-copy-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 110px;
+  justify-content: center;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.share-copy-btn.copied {
+  background: var(--success);
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.35);
+}
+
 </style>

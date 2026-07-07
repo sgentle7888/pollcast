@@ -77,6 +77,16 @@
             <RouterLink v-if="(poll.total_responses || 0) > 0" :to="'/polls/' + poll.name + '/results'" class="btn btn-secondary btn-sm flex-1">
               Results
             </RouterLink>
+            <!-- Copy shareable link -->
+            <button
+              class="btn btn-ghost btn-icon btn-sm copy-link-btn"
+              :class="{ 'copy-link-done': copiedId === poll.name }"
+              @click.stop="copyLink(poll.name, 'poll')"
+              :title="copiedId === poll.name ? 'Copied!' : 'Copy shareable link'"
+            >
+              <svg v-if="copiedId !== poll.name" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
             <div v-if="auth.isPollManager" class="dropdown" @click.stop>
               <button class="btn btn-ghost btn-icon btn-sm" @click="toggleMenu(poll.name)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -128,6 +138,16 @@
             <RouterLink v-if="(survey.total_responses || 0) > 0" :to="'/surveys/' + survey.name + '/results'" class="btn btn-secondary btn-sm flex-1">
               Results
             </RouterLink>
+            <!-- Copy shareable link -->
+            <button
+              class="btn btn-ghost btn-icon btn-sm copy-link-btn"
+              :class="{ 'copy-link-done': copiedId === survey.name }"
+              @click.stop="copyLink(survey.name, 'survey')"
+              :title="copiedId === survey.name ? 'Copied!' : 'Copy shareable link'"
+            >
+              <svg v-if="copiedId !== survey.name" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
             <div v-if="auth.isPollManager" class="dropdown" @click.stop>
               <button class="btn btn-ghost btn-icon btn-sm" @click="toggleMenu(survey.name)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -161,6 +181,26 @@ const statusFilter = ref("");
 const openMenu     = ref(null);
 const polls        = ref([]);
 const surveys      = ref([]);
+const copiedId     = ref(null);
+
+const copyLink = async (name, type) => {
+  const path = type === 'poll'
+    ? `/pollcast#/polls/${name}`
+    : `/pollcast#/surveys/${name}`;
+  const url = window.location.origin + path;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const el = document.createElement('input');
+    el.value = url;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+  copiedId.value = name;
+  setTimeout(() => { copiedId.value = null; }, 2000);
+};
 
 const setTab = (tab) => { activeTab.value = tab; resetFilters(); };
 const resetFilters = () => { search.value = ""; statusFilter.value = ""; };
@@ -257,6 +297,20 @@ const stripHtml = (html) => {
 
 .item-actions { display: flex; gap: 0.625rem; align-items: center; }
 .flex-1 { flex: 1; }
+
+/* Copy-link button */
+.copy-link-btn {
+  color: var(--text-muted);
+  transition: color 0.2s, background 0.2s;
+}
+.copy-link-btn:hover {
+  color: var(--accent-light);
+  background: var(--accent-dim);
+}
+.copy-link-btn.copy-link-done {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.12);
+}
 
 .tab-count {
   background: var(--accent-dim);
