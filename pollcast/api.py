@@ -257,7 +257,7 @@ def get_poll_analytics(poll_id):
         # Get poll responses
         poll_responses = frappe.get_all('Poll Response',
             filters={'poll': poll_id},
-            fields=['poll_option', 'participant_ip', 'creation']
+            fields=['poll_question', 'participant_ip', 'creation']
         )
 
         if not poll_responses:
@@ -286,7 +286,9 @@ def get_poll_analytics(poll_id):
         # Get vote distribution by option
         option_votes = {}
         for response in poll_responses:
-            option_id = response.poll_option
+            option_id = response.poll_question
+            if not option_id:
+                continue
             if option_id not in option_votes:
                 option_votes[option_id] = 0
             option_votes[option_id] += 1
@@ -294,11 +296,11 @@ def get_poll_analytics(poll_id):
         # Get option details and create distribution
         vote_distribution = []
         for option_id, vote_count in option_votes.items():
-            option = frappe.get_doc('Poll Option', option_id, ignore_permissions=True)
+            option = frappe.get_doc('Poll Question', option_id, ignore_permissions=True)
             percentage = (vote_count / len(poll_responses)) * 100
             vote_distribution.append({
                 'option_id': option_id,
-                'option_text': option.option_text,
+                'option_text': option.question_text,
                 'vote_count': vote_count,
                 'percentage': round(percentage, 1)
             })
@@ -919,11 +921,11 @@ def get_response_details():
             SELECT 
                 pr.creation,
                 p.title as poll_title,
-                po.option_text,
+                po.question_text as option_text,
                 pr.participant_ip
             FROM `tabPoll Response` pr
             JOIN `tabPoll` p ON pr.poll = p.name
-            JOIN `tabPoll Option` po ON pr.poll_option = po.name
+            JOIN `tabPoll Question` po ON pr.poll_question = po.name
             ORDER BY pr.creation DESC
             LIMIT 1000
         """, as_dict=True)

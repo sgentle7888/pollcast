@@ -77,7 +77,7 @@
       </div>
 
       <!-- Charts Row -->
-      <div class="grid-2" style="margin-bottom: 1.5rem;">
+      <div v-if="hasRatingQuestions" class="grid-2" style="margin-bottom: 1.5rem;">
         <!-- Radar performance map -->
         <div class="card chart-card animate-fade-in-up stagger-2">
           <div class="chart-header">
@@ -165,7 +165,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, inject } from "vue";
+import { ref, computed, onMounted, nextTick, inject } from "vue";
 import { useRoute } from "vue-router";
 import { frappeCall } from "../api/frappe.js";
 import Chart from "chart.js/auto";
@@ -182,6 +182,13 @@ const radarChartRef = ref(null);
 const barChartRef = ref(null);
 let radarChart = null;
 let barChart = null;
+
+const hasRatingQuestions = computed(() => {
+  if (!analytics.value || !analytics.value.question_analytics) return false;
+  return analytics.value.question_analytics.some(
+    (q) => q.question_type === "Rating Scale"
+  );
+});
 
 onMounted(async () => {
   try {
