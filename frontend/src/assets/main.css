@@ -1275,3 +1275,82 @@ select.form-control { appearance: none; cursor: pointer; }
   z-index: 49;
 }
 .sidebar-overlay.visible { display: block; }
+
+/* ----------------------------------------------------------------
+   Print Layout
+   ---------------------------------------------------------------- */
+@media print {
+  /* Hide non-printable app components */
+  .app-sidebar,
+  .sidebar-overlay,
+  .top-bar,
+  .header-actions,
+  .breadcrumbs,
+  .toast-container,
+  .btn,
+  button {
+    display: none !important;
+  }
+
+  /* Reset layout constraints for print paper */
+  .app-shell,
+  .main-layout,
+  .page-content,
+  .poll-results-view,
+  .survey-results-view {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+  }
+
+  /* Reset body and document colors to save ink and look print-friendly */
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Style cards for white paper backgrounds */
+  .card, .card-elevated, .stat-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Text style adjustments */
+  .stat-label {
+    color: #475569 !important;
+  }
+  .stat-value {
+    color: #0f172a !important;
+  }
+  .rank-badge {
+    border: 1px solid #cbd5e1 !important;
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+  }
+
+  /* Force grids to display cleanly in print layout */
+  .grid-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1.5rem !important;
+  }
+  .kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 1.5rem !important;
+  }
+
+  /* Ensure canvases (Chart.js) match print dimensions */
+  canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}

@@ -11,6 +11,9 @@
         <p class="page-subtitle" v-if="survey.description" v-html="survey.description"></p>
       </div>
       <div class="header-actions">
+        <button class="btn btn-secondary btn-sm" @click="printPage">
+          Export PDF
+        </button>
         <button class="btn btn-secondary btn-sm" @click="exportData('csv')" :disabled="exporting">
           <span v-if="exporting" class="spinner spinner-sm"></span>
           <span v-else>Export CSV</span>
@@ -172,6 +175,10 @@ import Chart from "chart.js/auto";
 
 const route = useRoute();
 const toast = inject("toast");
+
+const printPage = () => {
+  window.print();
+};
 
 const loading = ref(true);
 const exporting = ref(false);

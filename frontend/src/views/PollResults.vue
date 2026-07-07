@@ -24,6 +24,9 @@
           <p class="page-subtitle">Real-time vote counts and participant distribution.</p>
         </div>
         <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" @click="printPage">
+            Export PDF
+          </button>
           <RouterLink v-if="analytics.poll.status === 'Active'" :to="'/polls/' + analytics.poll.name" class="btn btn-primary btn-sm">
             Vote
           </RouterLink>
@@ -109,6 +112,10 @@ import { frappeCall } from "../api/frappe.js";
 import Chart from "chart.js/auto";
 
 const route = useRoute();
+
+const printPage = () => {
+  window.print();
+};
 const loading = ref(true);
 const error = ref(null);
 const analytics = ref(null);
