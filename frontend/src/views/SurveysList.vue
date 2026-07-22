@@ -56,7 +56,7 @@
         <button v-if="search || statusFilter" class="btn btn-secondary btn-sm" @click="resetFilters" style="margin-top: 0.75rem;">Clear filters</button>
       </div>
       <div v-else class="items-grid">
-        <div v-for="poll in filteredPolls" :key="poll.name" class="item-card card card-interactive animate-fade-in-up">
+        <div v-for="poll in filteredPolls" :key="poll.name" class="item-card card card-interactive animate-fade-in-up" :class="{ 'has-open-menu': openMenu === poll.name }">
           <div class="item-card-top">
             <span :class="['badge', 'badge-' + (poll.status || 'draft').toLowerCase()]">{{ poll.status }}</span>
             <span class="item-date text-muted text-xs">{{ formatDate(poll.creation) }}</span>
@@ -113,7 +113,7 @@
         <button v-if="search || statusFilter" class="btn btn-secondary btn-sm" @click="resetFilters" style="margin-top: 0.75rem;">Clear filters</button>
       </div>
       <div v-else class="items-grid">
-        <div v-for="survey in filteredSurveys" :key="survey.name" class="item-card card card-interactive animate-fade-in-up">
+        <div v-for="survey in filteredSurveys" :key="survey.name" class="item-card card card-interactive animate-fade-in-up" :class="{ 'has-open-menu': openMenu === survey.name }">
           <div class="item-card-top">
             <span :class="['badge', 'badge-' + (survey.status || 'draft').toLowerCase()]">{{ survey.status }}</span>
             <span class="item-date text-muted text-xs">{{ formatDate(survey.creation) }}</span>
@@ -279,7 +279,9 @@ const stripHtml = (html) => {
   gap: 1.25rem;
 }
 
-.item-card { display: flex; flex-direction: column; }
+.item-card { display: flex; flex-direction: column; position: relative; }
+.item-card.has-open-menu,
+.item-card:has(.dropdown-menu) { z-index: 50; }
 .item-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.875rem; }
 .item-date { flex-shrink: 0; }
 .item-title { font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.5rem; line-height: 1.3; }

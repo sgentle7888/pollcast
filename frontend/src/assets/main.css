@@ -965,7 +965,7 @@ select.form-control { appearance: none; cursor: pointer; }
 /* ----------------------------------------------------------------
    Dropdown Menu
    ---------------------------------------------------------------- */
-.dropdown { position: relative; }
+.dropdown { position: relative; z-index: 20; }
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 0.5rem);
@@ -974,7 +974,7 @@ select.form-control { appearance: none; cursor: pointer; }
   border: 1px solid var(--glass-border);
   border-radius: var(--r-md);
   min-width: 160px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), 0 0 24px rgba(0,0,0,0.35);
   z-index: 100;
   overflow: hidden;
   animation: fadeUp 0.15s var(--ease-out) forwards;
