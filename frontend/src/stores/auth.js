@@ -9,10 +9,11 @@ export const useAuthStore = defineStore("auth", () => {
   const loading = ref(false);
   const error = ref(null);
 
-  const isGuest      = computed(() => !user.value || user.value === "Guest");
-  const isAdmin      = computed(() => roles.value.includes("System Manager"));
-  const isPollManager= computed(() => roles.value.includes("Poll Manager") || roles.value.includes("System Manager"));
-  const isHRManager  = computed(() => roles.value.includes("HR Manager") || roles.value.includes("System Manager"));
+  const isGuest         = computed(() => !user.value || user.value === "Guest");
+  const isAdmin         = computed(() => roles.value.includes("System Manager"));
+  const isPollManager   = computed(() => roles.value.includes("Poll Manager") || roles.value.includes("System Manager"));
+  const isHRManager     = computed(() => roles.value.includes("HR Manager") || roles.value.includes("System Manager"));
+  const isProjectManager= computed(() => roles.value.includes("Project Manager") || roles.value.includes("System Manager"));
 
   const initials = computed(() => {
     const name = employeeName.value || user.value || "GU";
@@ -45,7 +46,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   return {
     user, roles, loading, error,
-    isGuest, isAdmin, isPollManager, isHRManager,
+    isGuest, isAdmin, isPollManager, isHRManager, isProjectManager,
     employeeName, initials,
     init,
   };

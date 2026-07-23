@@ -95,6 +95,19 @@
                 <button v-if="poll.status !== 'Active'"  class="dropdown-item" @click="updatePollStatus(poll, 'Active')">Activate</button>
                 <button v-if="poll.status !== 'Closed'"  class="dropdown-item danger" @click="updatePollStatus(poll, 'Closed')">Close</button>
                 <button v-if="poll.status !== 'Archived'" class="dropdown-item" @click="updatePollStatus(poll, 'Archived')">Archive</button>
+                <!-- Edit: only when no responses (PM) or always (SM) -->
+                <RouterLink
+                  v-if="auth.isAdmin || (auth.isProjectManager && (poll.total_responses || 0) === 0)"
+                  :to="'/create?edit=poll&name=' + poll.name"
+                  class="dropdown-item"
+                  @click="openMenu = null"
+                >Edit</RouterLink>
+                <!-- Delete: only when no responses (PM) or always (SM) -->
+                <button
+                  v-if="auth.isAdmin || (auth.isProjectManager && (poll.total_responses || 0) === 0)"
+                  class="dropdown-item danger"
+                  @click="deletePoll(poll)"
+                >Delete</button>
               </div>
             </div>
           </div>
@@ -156,6 +169,19 @@
                 <button v-if="survey.status !== 'Active'"  class="dropdown-item" @click="updateSurveyStatus(survey, 'Active')">Activate</button>
                 <button v-if="survey.status !== 'Closed'"  class="dropdown-item danger" @click="updateSurveyStatus(survey, 'Closed')">Close</button>
                 <button v-if="survey.status !== 'Archived'" class="dropdown-item" @click="updateSurveyStatus(survey, 'Archived')">Archive</button>
+                <!-- Edit: only when no responses (PM) or always (SM) -->
+                <RouterLink
+                  v-if="auth.isAdmin || (auth.isProjectManager && (survey.total_responses || 0) === 0)"
+                  :to="'/create?edit=survey&name=' + survey.name"
+                  class="dropdown-item"
+                  @click="openMenu = null"
+                >Edit</RouterLink>
+                <!-- Delete: only when no responses (PM) or always (SM) -->
+                <button
+                  v-if="auth.isAdmin || (auth.isProjectManager && (survey.total_responses || 0) === 0)"
+                  class="dropdown-item danger"
+                  @click="deleteSurvey(survey)"
+                >Delete</button>
               </div>
             </div>
           </div>
@@ -252,6 +278,34 @@ const updateSurveyStatus = async (survey, status) => {
   try {
     await frappeCall("pollcast.api.update_survey_status", { survey_name: survey.name, status });
     survey.status = status;
+  } catch (e) { alert("Error: " + e.message); }
+};
+
+const deletePoll = async (poll) => {
+  openMenu.value = null;
+  const hasResponses = (poll.total_responses || 0) > 0;
+  const msg = hasResponses
+    ? `"${poll.title}" has ${poll.total_responses} response(s). As System Manager you can still delete it. This action is irreversible. Continue?`
+    : `Are you sure you want to delete "${poll.title}"? This action cannot be undone.`;
+  if (!confirm(msg)) return;
+  try {
+    const res = await frappeCall("pollcast.api.delete_poll", { poll_name: poll.name });
+    if (res && res.error) { alert("Error: " + res.error); return; }
+    polls.value = polls.value.filter(p => p.name !== poll.name);
+  } catch (e) { alert("Error: " + e.message); }
+};
+
+const deleteSurvey = async (survey) => {
+  openMenu.value = null;
+  const hasResponses = (survey.total_responses || 0) > 0;
+  const msg = hasResponses
+    ? `"${survey.title}" has ${survey.total_responses} response(s). As System Manager you can still delete it. This action is irreversible. Continue?`
+    : `Are you sure you want to delete "${survey.title}"? This action cannot be undone.`;
+  if (!confirm(msg)) return;
+  try {
+    const res = await frappeCall("pollcast.api.delete_survey", { survey_name: survey.name });
+    if (res && res.error) { alert("Error: " + res.error); return; }
+    surveys.value = surveys.value.filter(s => s.name !== survey.name);
   } catch (e) { alert("Error: " + e.message); }
 };
 

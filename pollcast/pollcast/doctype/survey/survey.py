@@ -7,12 +7,82 @@ from frappe.utils import get_url, now, get_datetime
 import uuid
 
 class Survey(Document):
-       
+
+    def _has_responses(self):
+        """Return True if this survey has at least one response."""
+        return frappe.db.count('Survey Response', {'survey': self.name}) > 0
+
+    def _current_user_roles(self):
+        """Return the set of roles for the current user."""
+        return set(frappe.get_roles(frappe.session.user))
+
+    def has_permission(self, ptype="read", user=None):
+        """
+        Custom permission hook called by Frappe before every operation.
+
+        Rules:
+        - System Manager can do anything (return True).
+        - Project Manager can read/create/write/delete freely when there are NO responses.
+        - Project Manager cannot write or delete once responses exist.
+        - All other roles follow standard Frappe permission checks (return None).
+        """
+        roles = self._current_user_roles()
+
+        if "System Manager" in roles:
+            return True  # System Manager has full access
+
+        if "Project Manager" in roles:
+            if ptype in ("write", "delete"):
+                if self._has_responses():
+                    frappe.throw(
+                        frappe._(
+                            "You cannot {action} this Survey because it already has responses. "
+                            "Only a System Manager can perform this action."
+                        ).format(action="edit" if ptype == "write" else "delete"),
+                        frappe.PermissionError,
+                        title=frappe._("Permission Denied"),
+                    )
+            return True  # Permit read/create, and write/delete when no responses
+
+        # For all other roles fall through to standard Frappe permission evaluation
+        return None
+
     def validate(self):
+        """Validate dates and enforce edit restrictions."""
         if self.start_date and self.end_date:
             if self.start_date >= self.end_date:
                 frappe.throw("End date must be after start date")
-    
+
+        # Block editing by Project Manager if responses exist (server-side guard)
+        if not self.is_new():
+            roles = self._current_user_roles()
+            if "System Manager" not in roles and "Project Manager" in roles:
+                if self._has_responses():
+                    frappe.throw(
+                        frappe._(
+                            "You cannot edit this Survey because it already has responses. "
+                            "Only a System Manager can make changes."
+                        ),
+                        frappe.PermissionError,
+                        title=frappe._("Permission Denied"),
+                    )
+
+    def on_trash(self):
+        """Enforce delete restrictions before the document is deleted."""
+        roles = self._current_user_roles()
+        if "System Manager" in roles:
+            return  # System Manager can always delete
+
+        if "Project Manager" in roles and self._has_responses():
+            frappe.throw(
+                frappe._(
+                    "You cannot delete this Survey because it already has responses. "
+                    "Only a System Manager can delete a Survey that has responses."
+                ),
+                frappe.PermissionError,
+                title=frappe._("Permission Denied"),
+            )
+
     def on_update(self):
         self.update_total_responses()
     

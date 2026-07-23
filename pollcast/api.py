@@ -34,6 +34,7 @@ def get_user_info():
             'user_image': user_doc.user_image,
             'roles': roles,
             'is_poll_manager': 'Poll Manager' in roles or 'System Manager' in roles,
+            'is_project_manager': 'Project Manager' in roles or 'System Manager' in roles,
             'is_guest': False
         }
     except Exception as e:
@@ -1268,4 +1269,94 @@ def update_survey_status(survey_name, status):
         return {'success': True}
     except Exception as e:
         frappe.log_error(f"Update survey status error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def delete_poll(poll_name):
+    """
+    Delete a Poll document.
+
+    Permission rules enforced here (in addition to the doctype's on_trash hook):
+    - System Manager: can delete at any time (even with responses).
+    - Project Manager: can delete ONLY when there are no responses.
+    - Anyone else: not allowed.
+    """
+    try:
+        roles = set(frappe.get_roles(frappe.session.user))
+
+        if not frappe.db.exists('Poll', poll_name):
+            return {'error': 'Poll not found'}
+
+        response_count = frappe.db.count('Poll Response', {'poll': poll_name})
+
+        if 'System Manager' not in roles:
+            if 'Project Manager' not in roles:
+                frappe.throw(
+                    frappe._("You do not have permission to delete Polls."),
+                    frappe.PermissionError,
+                    title=frappe._("Permission Denied"),
+                )
+            if response_count > 0:
+                frappe.throw(
+                    frappe._(
+                        "You cannot delete this Poll because it already has {0} response(s). "
+                        "Only a System Manager can delete a Poll that has responses."
+                    ).format(response_count),
+                    frappe.PermissionError,
+                    title=frappe._("Permission Denied"),
+                )
+
+        frappe.delete_doc('Poll', poll_name, ignore_permissions=True)
+        frappe.db.commit()
+        return {'success': True}
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Delete poll error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def delete_survey(survey_name):
+    """
+    Delete a Survey document.
+
+    Permission rules enforced here (in addition to the doctype's on_trash hook):
+    - System Manager: can delete at any time (even with responses).
+    - Project Manager: can delete ONLY when there are no responses.
+    - Anyone else: not allowed.
+    """
+    try:
+        roles = set(frappe.get_roles(frappe.session.user))
+
+        if not frappe.db.exists('Survey', survey_name):
+            return {'error': 'Survey not found'}
+
+        response_count = frappe.db.count('Survey Response', {'survey': survey_name})
+
+        if 'System Manager' not in roles:
+            if 'Project Manager' not in roles:
+                frappe.throw(
+                    frappe._("You do not have permission to delete Surveys."),
+                    frappe.PermissionError,
+                    title=frappe._("Permission Denied"),
+                )
+            if response_count > 0:
+                frappe.throw(
+                    frappe._(
+                        "You cannot delete this Survey because it already has {0} response(s). "
+                        "Only a System Manager can delete a Survey that has responses."
+                    ).format(response_count),
+                    frappe.PermissionError,
+                    title=frappe._("Permission Denied"),
+                )
+
+        frappe.delete_doc('Survey', survey_name, ignore_permissions=True)
+        frappe.db.commit()
+        return {'success': True}
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Delete survey error: {str(e)}")
         return {'error': str(e)}
