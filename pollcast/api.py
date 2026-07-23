@@ -1277,10 +1277,13 @@ def delete_poll(poll_name):
     """
     Delete a Poll document.
 
-    Permission rules enforced here (in addition to the doctype's on_trash hook):
+    Permission rules:
     - System Manager: can delete at any time (even with responses).
     - Project Manager: can delete ONLY when there are no responses.
     - Anyone else: not allowed.
+
+    Note: Uses force=True on frappe.delete_doc to avoid HTTP 417 (LinkExistsError)
+    when linked Poll Response records exist.
     """
     try:
         roles = set(frappe.get_roles(frappe.session.user))
@@ -1307,7 +1310,13 @@ def delete_poll(poll_name):
                     title=frappe._("Permission Denied"),
                 )
 
-        frappe.delete_doc('Poll', poll_name, ignore_permissions=True)
+        # Delete all linked Poll Responses first to avoid Frappe's LinkExistsError (HTTP 417)
+        if response_count > 0:
+            linked_responses = frappe.get_all('Poll Response', filters={'poll': poll_name}, fields=['name'])
+            for resp in linked_responses:
+                frappe.delete_doc('Poll Response', resp.name, force=True, ignore_permissions=True)
+
+        frappe.delete_doc('Poll', poll_name, force=True, ignore_permissions=True)
         frappe.db.commit()
         return {'success': True}
     except frappe.PermissionError:
@@ -1322,10 +1331,13 @@ def delete_survey(survey_name):
     """
     Delete a Survey document.
 
-    Permission rules enforced here (in addition to the doctype's on_trash hook):
+    Permission rules:
     - System Manager: can delete at any time (even with responses).
     - Project Manager: can delete ONLY when there are no responses.
     - Anyone else: not allowed.
+
+    Note: Uses force=True on frappe.delete_doc to avoid HTTP 417 (LinkExistsError)
+    when linked Survey Response records exist.
     """
     try:
         roles = set(frappe.get_roles(frappe.session.user))
@@ -1352,7 +1364,13 @@ def delete_survey(survey_name):
                     title=frappe._("Permission Denied"),
                 )
 
-        frappe.delete_doc('Survey', survey_name, ignore_permissions=True)
+        # Delete all linked Survey Responses first to avoid Frappe's LinkExistsError (HTTP 417)
+        if response_count > 0:
+            linked_responses = frappe.get_all('Survey Response', filters={'survey': survey_name}, fields=['name'])
+            for resp in linked_responses:
+                frappe.delete_doc('Survey Response', resp.name, force=True, ignore_permissions=True)
+
+        frappe.delete_doc('Survey', survey_name, force=True, ignore_permissions=True)
         frappe.db.commit()
         return {'success': True}
     except frappe.PermissionError:
