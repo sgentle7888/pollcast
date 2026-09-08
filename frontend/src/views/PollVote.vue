@@ -14,11 +14,18 @@
 
     <!-- Voting Card -->
     <div v-else-if="poll" class="card poll-vote-card" style="max-width: 600px; margin: 0 auto;">
+
+      <!-- Centered Company Branding Header -->
+      <div v-if="displayLogo || displayCompanyName" class="poll-brand-header">
+        <img v-if="displayLogo" :src="displayLogo" alt="Company Logo" class="poll-brand-logo" />
+        <div v-if="displayCompanyName" class="poll-brand-name">{{ displayCompanyName }}</div>
+      </div>
+
       <!-- Header -->
       <div class="poll-header-block" style="margin-bottom: 1.5rem;">
         <span class="badge badge-active" style="margin-bottom: 0.5rem;">Active Poll</span>
         <h2 style="font-size: 1.35rem; line-height: 1.3;">{{ poll.title }}</h2>
-        <p v-if="poll.description" class="text-secondary text-sm" style="margin-top: 0.5rem;" v-html="poll.description"></p>
+        <p v-if="plainDescription" class="text-secondary text-sm poll-desc-text">{{ plainDescription }}</p>
       </div>
 
       <form @submit.prevent="submitVote">
@@ -60,12 +67,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from "vue";
+import { ref, computed, onMounted, watch, inject } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth.js";
 import { frappeCall } from "../api/frappe.js";
 
 const route = useRoute();
 const router = useRouter();
+const auth  = useAuthStore();
 const toast = inject("toast");
 
 const loading = ref(true);
@@ -74,10 +83,46 @@ const error = ref(null);
 const poll = ref(null);
 const selectedOption = ref("");
 
-onMounted(async () => {
+const displayLogo = computed(() =>
+  poll.value?.company_logo || auth.companyLogo || window.pollcast_company_logo || null
+);
+
+const displayCompanyName = computed(() =>
+  poll.value?.company_name || auth.companyName || window.pollcast_company_name || ""
+);
+
+const plainDescription = computed(() => {
+  const desc = poll.value?.description || "";
+  if (!desc) return "";
+  if (!/<[a-z][\s\S]*>/i.test(desc)) return desc;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(desc, "text/html");
+    doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+    doc.querySelectorAll("p, div, li, tr").forEach((el) => {
+      el.after("\n");
+    });
+    return (doc.body.textContent || doc.body.innerText || "").trim();
+  } catch {
+    return desc.replace(/<[^>]+>/g, "").trim();
+  }
+});
+
+const loadPoll = async () => {
+  const name = route.params.name;
+  if (!name) return;
+  loading.value = true;
+  error.value = null;
+  poll.value = null;
+  selectedOption.value = "";
+
+  if (!auth.companyLogo && !auth.companyName) {
+    auth.fetchCompanyLogo();
+  }
+
   try {
     const result = await frappeCall("pollcast.api.get_poll", {
-      poll_name: route.params.name,
+      poll_name: name,
     });
     if (!result || result.error) {
       error.value = result?.error || "Poll not found";
@@ -89,7 +134,20 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+};
+
+onMounted(() => {
+  loadPoll();
 });
+
+watch(
+  () => route.params.name,
+  (newName, oldName) => {
+    if (newName && newName !== oldName) {
+      loadPoll();
+    }
+  }
+);
 
 const submitVote = async () => {
   if (!selectedOption.value) return;
@@ -176,5 +234,40 @@ const submitVote = async () => {
 .option-text {
   font-size: 0.9375rem;
   color: var(--text-primary);
+}
+
+/* Centered Company Branding */
+.poll-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.poll-brand-logo {
+  max-height: 56px;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.poll-brand-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.poll-desc-text {
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  line-height: 1.5;
 }
 </style>

@@ -5,11 +5,11 @@
       <div>
         <div class="breadcrumbs">
           <RouterLink to="/">Home</RouterLink><span class="sep">/</span>
-          <RouterLink v-if="isEditMode" to="/surveys">Surveys</RouterLink>
+          <RouterLink v-if="isEditMode" :to="type === 'poll' ? '/polls' : '/surveys'">{{ type === 'poll' ? 'Polls' : 'Surveys' }}</RouterLink>
           <span v-if="isEditMode" class="sep">/</span>
-          <span class="current">{{ isEditMode ? 'Edit Survey' : `Create ${type === 'poll' ? 'Poll' : 'Survey'}` }}</span>
+          <span class="current">{{ isEditMode ? `Edit ${type === 'poll' ? 'Poll' : 'Survey'}` : `Create ${type === 'poll' ? 'Poll' : 'Survey'}` }}</span>
         </div>
-        <h1 class="page-title">{{ isEditMode ? 'Edit Survey' : 'Create New' }}</h1>
+        <h1 class="page-title">{{ isEditMode ? `Edit ${type === 'poll' ? 'Poll' : 'Survey'}` : 'Create New' }}</h1>
         <p v-if="isEditMode && form.title" class="page-subtitle text-secondary">
           Editing <strong>{{ targetDocName }}</strong> &mdash; {{ form.title }}
         </p>
@@ -19,7 +19,7 @@
     <!-- Loading State for Edit Mode -->
     <div v-if="loadingDoc" class="loading-state card">
       <div class="spinner"></div>
-      <p>Loading survey details…</p>
+      <p>Loading {{ type === 'poll' ? 'poll' : 'survey' }} details…</p>
     </div>
 
     <!-- Type selector (step 0 - create mode only) -->
@@ -71,12 +71,12 @@
 
       <!-- Step 1: Basic Info -->
       <div v-if="step === 1" class="card wizard-step animate-fade-in-up">
-        <h3 class="step-heading">{{ isEditMode ? 'Basic Survey Information' : 'Basic Information' }}</h3>
+        <h3 class="step-heading">{{ isEditMode ? `Basic ${type === 'poll' ? 'Poll' : 'Survey'} Information` : 'Basic Information' }}</h3>
         <p class="text-secondary text-sm" style="margin-bottom: 1.5rem;">
-          {{ isEditMode ? 'Update the title, description, and timeline for this survey.' : `Give your ${type} a clear title and optional description.` }}
+          {{ isEditMode ? `Update the title, instructions, and timeline for this ${type}.` : `Give your ${type} a clear title and optional description.` }}
         </p>
 
-        <!-- Warning if survey already has responses -->
+        <!-- Warning if survey/poll already has responses -->
         <div v-if="isEditMode && responseCount > 0" class="response-warning-banner">
           <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-warning" style="flex-shrink: 0; margin-top: 2px;">
@@ -84,9 +84,9 @@
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
             <div>
-              <strong class="text-primary">Survey has {{ responseCount }} recorded response(s)</strong>
+              <strong class="text-primary">{{ type === 'poll' ? 'Poll' : 'Survey' }} has {{ responseCount }} recorded response(s)</strong>
               <p class="text-secondary text-xs" style="margin-top: 0.2rem; line-height: 1.4;">
-                To protect response data integrity, only System Managers can perform structural question removals. You can freely update the title, instructions, and dates.
+                To protect response data integrity, only System Managers can alter voting options or questions. You can freely update the title, instructions, status, and dates.
               </p>
             </div>
           </div>
@@ -98,7 +98,7 @@
             <input type="text" class="form-control" v-model="form.title" :placeholder="type === 'poll' ? 'e.g. Best programming language 2025?' : 'e.g. Q2 Employee Satisfaction Survey'" maxlength="200" />
           </div>
           <div class="form-group" style="grid-column: span 2;">
-            <label class="form-label">Description / Instructions</label>
+            <label class="form-label">Description / Instructions <span class="text-xs text-muted font-normal">(plain text)</span></label>
             <textarea class="form-control" v-model="form.description" rows="3" placeholder="Optional context or instructions for participants…"></textarea>
           </div>
           <div v-if="isEditMode" class="form-group">
@@ -143,7 +143,7 @@
 
         <div class="wizard-nav">
           <button v-if="!isEditMode" class="btn btn-ghost" @click="step = 0">← Back</button>
-          <RouterLink v-else to="/surveys" class="btn btn-ghost">← Cancel</RouterLink>
+          <RouterLink v-else :to="type === 'poll' ? '/polls' : '/surveys'" class="btn btn-ghost">← Cancel</RouterLink>
           <button class="btn btn-primary" :disabled="!form.title.trim()" @click="step = 2">
             Continue →
           </button>
@@ -159,14 +159,19 @@
 
         <!-- POLL Options -->
         <div v-if="type === 'poll'" class="options-builder">
+          <div v-if="isEditMode && responseCount > 0 && !auth.isAdmin" class="response-warning-banner" style="margin-bottom: 1rem;">
+            <p class="text-xs text-secondary" style="margin: 0;">
+              ⚠️ This poll has recorded votes. Modifying or deleting options is restricted to System Managers.
+            </p>
+          </div>
           <div v-for="(opt, i) in form.options" :key="i" class="option-row-build">
             <div class="opt-num">{{ i + 1 }}</div>
-            <input type="text" class="form-control" v-model="opt.text" :placeholder="'Option ' + (i + 1)" />
-            <button class="btn btn-ghost btn-icon" @click="removeOption(i)" :disabled="form.options.length <= 2" title="Remove">
+            <input type="text" class="form-control" v-model="opt.text" :placeholder="'Option ' + (i + 1)" :disabled="isEditMode && responseCount > 0 && !auth.isAdmin" />
+            <button class="btn btn-ghost btn-icon" @click="removeOption(i)" :disabled="form.options.length <= 2 || (isEditMode && responseCount > 0 && !auth.isAdmin)" title="Remove">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <button class="btn btn-secondary" @click="addOption" :disabled="form.options.length >= 10">
+          <button class="btn btn-secondary" @click="addOption" :disabled="form.options.length >= 10 || (isEditMode && responseCount > 0 && !auth.isAdmin)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Option
           </button>
@@ -277,7 +282,7 @@
             <span v-if="submitting" class="spinner spinner-sm"></span>
             <span v-else>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ isEditMode ? 'Save Survey Changes' : `Create ${type === 'poll' ? 'Poll' : 'Survey'}` }}
+              {{ isEditMode ? `Save ${type === 'poll' ? 'Poll' : 'Survey'} Changes` : `Create ${type === 'poll' ? 'Poll' : 'Survey'}` }}
             </span>
           </button>
         </div>
@@ -291,7 +296,7 @@
           </div>
         </div>
         <h3 class="step-heading" style="text-align: center;">
-          {{ isEditMode ? 'Survey Updated! 🎉' : `${type === 'poll' ? 'Poll' : 'Survey'} Created! 🎉` }}
+          {{ isEditMode ? `${type === 'poll' ? 'Poll' : 'Survey'} Updated! 🎉` : `${type === 'poll' ? 'Poll' : 'Survey'} Created! 🎉` }}
         </h3>
         <p class="text-secondary text-sm" style="text-align: center; margin-bottom: 1.75rem;">
           <strong>{{ form.title }}</strong> {{ isEditMode ? 'has been successfully updated.' : 'is ready. Share the link below with your participants.' }}
@@ -325,15 +330,15 @@
 
         <div class="wizard-nav" style="justify-content: center; gap: 1rem; margin-top: 1.75rem; flex-wrap: wrap;">
           <button v-if="!isEditMode" class="btn btn-ghost" @click="createAnother">+ Create Another</button>
-          <RouterLink to="/surveys" class="btn btn-ghost">Back to Surveys</RouterLink>
+          <RouterLink :to="type === 'poll' ? '/polls' : '/surveys'" class="btn btn-ghost">Back to {{ type === 'poll' ? 'Polls' : 'Surveys' }}</RouterLink>
           <RouterLink
-            :to="(type === 'poll' ? '/polls/' : '/surveys/') + createdName"
+            :to="(type === 'poll' ? '/polls/' : '/surveys/') + (createdName || targetDocName)"
             class="btn btn-primary"
-          >Take Survey</RouterLink>
+          >{{ type === 'poll' ? 'Take Poll' : 'Take Survey' }}</RouterLink>
           <RouterLink
-            :to="'/surveys/' + createdName + '/results'"
+            :to="(type === 'poll' ? '/polls/' : '/surveys/') + (createdName || targetDocName) + '/results'"
             class="btn btn-secondary"
-          >Survey Results</RouterLink>
+          >{{ type === 'poll' ? 'Poll Results' : 'Survey Results' }}</RouterLink>
         </div>
       </div>
     </div>
@@ -362,7 +367,9 @@ const loadingDoc = ref(false);
 const responseCount = ref(0);
 
 const targetDocName = computed(() => route.query.name || route.params.name || "");
-const isEditMode = computed(() => (route.query.edit === "survey" || !!route.params.name) && !!targetDocName.value);
+const isPollEdit = computed(() => route.query.edit === "poll" || route.path.includes("/polls/"));
+const isSurveyEdit = computed(() => route.query.edit === "survey" || route.path.includes("/surveys/") || (!isPollEdit.value && !!targetDocName.value));
+const isEditMode = computed(() => (isPollEdit.value || isSurveyEdit.value) && !!targetDocName.value);
 
 const shareUrl = computed(() => {
   const name = createdName.value || targetDocName.value;
@@ -373,6 +380,22 @@ const shareUrl = computed(() => {
     : `/pollcast#/surveys/${name}`;
   return base + path;
 });
+
+const htmlToPlainText = (str) => {
+  if (!str) return "";
+  if (!/<[a-z][\s\S]*>/i.test(str)) return str;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(str, "text/html");
+    doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+    doc.querySelectorAll("p, div, li, tr").forEach((el) => {
+      el.after("\n");
+    });
+    return (doc.body.textContent || doc.body.innerText || "").trim();
+  } catch {
+    return str.replace(/<[^>]+>/g, "").trim();
+  }
+};
 
 const toDatetimeLocal = (str) => {
   if (!str) return "";
@@ -443,13 +466,13 @@ const loadSurveyForEdit = async (name) => {
       createdName.value = res.name;
       responseCount.value = res.total_responses || 0;
       form.value.title = res.title || "";
-      form.value.description = res.description || "";
+      form.value.description = htmlToPlainText(res.description || "");
       form.value.status = res.status || "Draft";
       form.value.startDate = toDatetimeLocal(res.start_date);
       form.value.endDate = toDatetimeLocal(res.end_date);
 
       if (res.questions && res.questions.length > 0) {
-        form.value.questions = res.questions.map(q => ({
+        form.value.questions = res.questions.map((q) => ({
           name: q.name,
           text: q.question_text || "",
           type: q.question_type || "Rating Scale",
@@ -469,18 +492,58 @@ const loadSurveyForEdit = async (name) => {
   }
 };
 
-onMounted(() => {
-  if (isEditMode.value) {
+const loadPollForEdit = async (name) => {
+  if (!name) return;
+  loadingDoc.value = true;
+  type.value = "poll";
+  step.value = 1;
+
+  try {
+    const res = await frappeCall("pollcast.api.get_poll", { poll_name: name });
+    if (res && !res.error) {
+      createdName.value = res.name;
+      responseCount.value = res.total_responses || 0;
+      form.value.title = res.title || "";
+      form.value.description = htmlToPlainText(res.description || "");
+      form.value.status = res.status || "Draft";
+      form.value.startDate = toDatetimeLocal(res.start_date);
+      form.value.endDate = toDatetimeLocal(res.end_date);
+
+      if (res.questions && res.questions.length > 0) {
+        form.value.options = res.questions.map((q) => ({
+          text: q.question_text || "",
+        }));
+      }
+      while (form.value.options.length < 2) {
+        form.value.options.push({ text: "" });
+      }
+    } else {
+      toast?.(res?.error || "Poll not found", "error");
+    }
+  } catch (err) {
+    toast?.(err.message || "Failed to load poll", "error");
+  } finally {
+    loadingDoc.value = false;
+  }
+};
+
+const loadDocForEdit = () => {
+  if (!isEditMode.value) return;
+  if (isPollEdit.value) {
+    loadPollForEdit(targetDocName.value);
+  } else {
     loadSurveyForEdit(targetDocName.value);
   }
+};
+
+onMounted(() => {
+  loadDocForEdit();
 });
 
 watch(
-  () => [route.query.name, route.params.name, route.query.edit],
+  () => [route.query.name, route.params.name, route.query.edit, route.path],
   () => {
-    if (isEditMode.value) {
-      loadSurveyForEdit(targetDocName.value);
-    }
+    loadDocForEdit();
   }
 );
 
@@ -505,30 +568,47 @@ const submit = async () => {
   try {
     let result;
     if (isEditMode.value) {
-      result = await frappeCall("pollcast.api.update_survey", {
-        survey_name: targetDocName.value,
-        title:       form.value.title,
-        description: form.value.description,
-        status:      form.value.status,
-        start_date:  form.value.startDate || null,
-        end_date:    form.value.endDate   || null,
-        questions:   form.value.questions
-          .filter((q) => q.text.trim())
-          .map((q) => ({
-            name:          q.name,
-            question_text: q.text,
-            question_type: q.type,
-            required:      q.required ? 1 : 0,
-            options:       q.options?.filter(Boolean) || [],
-            scale_min:     q.scale_min || 1,
-            scale_max:     q.scale_max || 5,
-          })),
-      });
+      if (type.value === "poll") {
+        result = await frappeCall("pollcast.api.update_poll", {
+          poll_name:   targetDocName.value,
+          title:       form.value.title,
+          description: form.value.description,
+          status:      form.value.status,
+          start_date:  form.value.startDate || null,
+          end_date:    form.value.endDate   || null,
+          options:     form.value.options.filter((o) => o.text.trim()).map((o) => o.text),
+        });
+        if (result?.success || result?.name) {
+          toast?.("Poll updated successfully!", "success");
+          createdName.value = targetDocName.value;
+          step.value = 4;
+        }
+      } else {
+        result = await frappeCall("pollcast.api.update_survey", {
+          survey_name: targetDocName.value,
+          title:       form.value.title,
+          description: form.value.description,
+          status:      form.value.status,
+          start_date:  form.value.startDate || null,
+          end_date:    form.value.endDate   || null,
+          questions:   form.value.questions
+            .filter((q) => q.text.trim())
+            .map((q) => ({
+              name:          q.name,
+              question_text: q.text,
+              question_type: q.type,
+              required:      q.required ? 1 : 0,
+              options:       q.options?.filter(Boolean) || [],
+              scale_min:     q.scale_min || 1,
+              scale_max:     q.scale_max || 5,
+            })),
+        });
 
-      if (result?.success || result?.name) {
-        toast?.("Survey updated successfully!", "success");
-        createdName.value = targetDocName.value;
-        step.value = 4;
+        if (result?.success || result?.name) {
+          toast?.("Survey updated successfully!", "success");
+          createdName.value = targetDocName.value;
+          step.value = 4;
+        }
       }
     } else if (type.value === "poll") {
       result = await frappeCall("pollcast.api.create_poll", {

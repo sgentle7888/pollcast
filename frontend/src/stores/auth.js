@@ -16,6 +16,7 @@ export const useAuthStore = defineStore("auth", () => {
   const isProjectManager= computed(() => roles.value.includes("Project Manager") || roles.value.includes("System Manager"));
 
   const companyLogo     = ref(window.pollcast_company_logo || "");
+  const companyName     = ref(window.pollcast_company_name || "");
 
   const initials = computed(() => {
     const name = employeeName.value || user.value || "GU";
@@ -30,8 +31,9 @@ export const useAuthStore = defineStore("auth", () => {
   async function fetchCompanyLogo() {
     try {
       const res = await frappeCall("pollcast.api.get_company_logo");
-      if (res && res.logo !== undefined) {
-        companyLogo.value = res.logo || "";
+      if (res) {
+        if (res.logo !== undefined) companyLogo.value = res.logo || "";
+        if (res.company_name !== undefined) companyName.value = res.company_name || "";
       }
     } catch (e) {
       console.warn("fetchCompanyLogo error:", e.message);
@@ -40,6 +42,11 @@ export const useAuthStore = defineStore("auth", () => {
 
   function setCompanyLogo(url) {
     companyLogo.value = url || "";
+  }
+
+  function setCompanyBranding(logo, name) {
+    if (logo !== undefined) companyLogo.value = logo || "";
+    if (name !== undefined) companyName.value = name || "";
   }
 
   async function init() {
@@ -65,8 +72,8 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     user, roles, loading, error,
     isGuest, isAdmin, isPollManager, isHRManager, isProjectManager,
-    employeeName, initials, companyLogo,
-    init, fetchCompanyLogo, setCompanyLogo,
+    employeeName, initials, companyLogo, companyName,
+    init, fetchCompanyLogo, setCompanyLogo, setCompanyBranding,
   };
 });
 

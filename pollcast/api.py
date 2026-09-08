@@ -80,7 +80,7 @@ def get_surveys():
 
 @frappe.whitelist(allow_guest=True)
 def get_poll(poll_name):
-    """Get a single poll with its questions/options for the PollVote page"""
+    """Get a single poll with its questions/options for the PollVote and Edit pages"""
     try:
         if not poll_name:
             return {'error': 'Poll name is required'}
@@ -89,9 +89,6 @@ def get_poll(poll_name):
             return {'error': 'Poll not found'}
 
         poll = frappe.get_doc('Poll', poll_name)
-
-        if poll.status != 'Active':
-            return {'error': 'Poll is not active'}
 
         questions = []
         for q in poll.questions:
@@ -106,12 +103,19 @@ def get_poll(poll_name):
                 ]
             questions.append(q_data)
 
+        logo_info = get_company_logo()
+
         return {
             'name': poll.name,
             'title': poll.title,
             'description': poll.description,
             'status': poll.status,
+            'start_date': str(poll.start_date) if poll.start_date else None,
+            'end_date': str(poll.end_date) if poll.end_date else None,
+            'total_responses': poll.total_responses or 0,
             'questions': questions,
+            'company_logo': logo_info.get('logo'),
+            'company_name': logo_info.get('company_name'),
         }
     except Exception as e:
         frappe.log_error(f"Get poll error: {str(e)}")
@@ -164,24 +168,40 @@ def _validate_and_sanitize_image(filename, content):
 
 @frappe.whitelist(allow_guest=True)
 def get_company_logo():
-    """Retrieve company logo URL for display on survey interfaces."""
+    """Retrieve company logo URL and company name for display on survey interfaces."""
     logo = frappe.db.get_default('pollcast_company_logo')
     if not logo:
         logo = frappe.db.get_single_value('Website Settings', 'app_logo')
-    return {'logo': logo or None}
+
+    company_name = frappe.db.get_default('pollcast_company_name')
+    if not company_name:
+        company_name = (
+            frappe.db.get_single_value('Website Settings', 'app_name') or
+            frappe.db.get_value('System Settings', None, 'app_name') or
+            ''
+        )
+    return {
+        'logo': logo or None,
+        'company_name': company_name or None,
+    }
 
 
 @frappe.whitelist()
-def upload_company_logo(filename=None, filedata=None):
+def upload_company_logo(filename=None, filedata=None, company_name=None):
     """
-    Upload and register company logo.
+    Upload and register company logo and/or update company name.
     Accessible by System Manager, Poll Manager, and Project Manager.
-    Supports multipart form-data or base64 filedata.
+    Supports multipart form-data or base64 filedata, plus company_name text.
     """
     try:
         roles = set(frappe.get_roles(frappe.session.user))
         if not (roles & {'System Manager', 'Poll Manager', 'Project Manager'}):
             frappe.throw(_("You do not have permission to update company branding."), frappe.PermissionError)
+
+        # Update company_name if passed
+        if company_name is not None:
+            clean_name = str(company_name).strip()
+            frappe.db.set_default('pollcast_company_name', clean_name if clean_name else None)
 
         content = None
         orig_filename = filename
@@ -199,19 +219,22 @@ def upload_company_logo(filename=None, filedata=None):
                 filedata = filedata.split(',', 1)[1]
             content = base64.b64decode(filedata)
 
-        if not content or not orig_filename:
-            return {'error': 'No file uploaded or file content missing.'}
+        if content and orig_filename:
+            safe_filename = _validate_and_sanitize_image(orig_filename, content)
 
-        safe_filename = _validate_and_sanitize_image(orig_filename, content)
+            # Save via Frappe standard file manager
+            file_doc = save_file(safe_filename, content, dt=None, dn=None, is_private=0)
+            file_url = file_doc.file_url
 
-        # Save via Frappe standard file manager
-        file_doc = save_file(safe_filename, content, dt=None, dn=None, is_private=0)
-        file_url = file_doc.file_url
+            frappe.db.set_default('pollcast_company_logo', file_url)
 
-        frappe.db.set_default('pollcast_company_logo', file_url)
         frappe.db.commit()
-
-        return {'success': True, 'logo': file_url}
+        branding = get_company_logo()
+        return {
+            'success': True,
+            'logo': branding.get('logo'),
+            'company_name': branding.get('company_name'),
+        }
     except frappe.PermissionError:
         raise
     except Exception as e:
@@ -221,7 +244,7 @@ def upload_company_logo(filename=None, filedata=None):
 
 @frappe.whitelist()
 def remove_company_logo():
-    """Remove custom company logo and return default/fallback logo."""
+    """Remove custom company logo and return default/fallback branding."""
     try:
         roles = set(frappe.get_roles(frappe.session.user))
         if not (roles & {'System Manager', 'Poll Manager', 'Project Manager'}):
@@ -281,6 +304,7 @@ def get_survey(survey_name):
             'total_responses': survey.total_responses,
             'questions': questions,
             'company_logo': logo_info.get('logo'),
+            'company_name': logo_info.get('company_name'),
         }
     except Exception as e:
         frappe.log_error(f"Get survey error: {str(e)}")
@@ -1585,4 +1609,69 @@ def update_survey(survey_name, title, description=None, start_date=None, end_dat
         raise
     except Exception as e:
         frappe.log_error(f"Update survey error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def update_poll(poll_name, title, description=None, start_date=None, end_date=None, options=None, status=None):
+    """
+    Update an existing Poll document and its option questions.
+    Accessible by System Manager, Poll Manager, and Project Manager.
+    Enforces that Project/Poll Managers cannot alter options if responses already exist.
+    """
+    try:
+        roles = set(frappe.get_roles(frappe.session.user))
+        if not (roles & {'System Manager', 'Poll Manager', 'Project Manager'}):
+            frappe.throw(_("You do not have permission to edit Polls."), frappe.PermissionError)
+
+        if not poll_name or not frappe.db.exists('Poll', poll_name):
+            return {'error': 'Poll not found'}
+
+        poll = frappe.get_doc('Poll', poll_name)
+
+        has_responses = frappe.db.count('Poll Response', {'poll': poll_name}) > 0
+        if has_responses and 'System Manager' not in roles:
+            if options is not None:
+                frappe.throw(
+                    _("You cannot alter options on this Poll because it already has responses. Only a System Manager can make structural changes."),
+                    frappe.PermissionError,
+                    title=_("Permission Denied"),
+                )
+
+        if not title or not title.strip():
+            return {'error': 'Poll title is required'}
+
+        poll.title = title.strip()
+        if description is not None:
+            poll.description = description
+        poll.start_date = start_date if start_date and start_date != 'null' else None
+        poll.end_date = end_date if end_date and end_date != 'null' else None
+
+        if status and status in ['Draft', 'Active', 'Closed', 'Archived']:
+            poll.status = status
+
+        if options is not None:
+            if isinstance(options, str):
+                options = json.loads(options)
+            options = options or []
+
+            clean_options = [str(o).strip() for o in options if str(o).strip()]
+            if len(clean_options) < 2:
+                return {'error': 'A poll needs at least 2 options'}
+
+            poll.set('questions', [])
+            for opt in clean_options:
+                poll.append('questions', {
+                    'question_text': opt,
+                    'question_type': 'Single Choice',
+                    'options': opt,
+                })
+
+        poll.save()
+        frappe.db.commit()
+        return {'success': True, 'name': poll.name}
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Update poll error: {str(e)}")
         return {'error': str(e)}

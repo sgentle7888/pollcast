@@ -95,10 +95,10 @@
                 <button v-if="poll.status !== 'Active'"  class="dropdown-item" @click="updatePollStatus(poll, 'Active')">Activate</button>
                 <button v-if="poll.status !== 'Closed'"  class="dropdown-item danger" @click="updatePollStatus(poll, 'Closed')">Close</button>
                 <button v-if="poll.status !== 'Archived'" class="dropdown-item" @click="updatePollStatus(poll, 'Archived')">Archive</button>
-                <!-- Edit: only when no responses (PM) or always (SM) -->
+                <!-- Edit poll -->
                 <RouterLink
-                  v-if="auth.isAdmin || (auth.isProjectManager && (poll.total_responses || 0) === 0)"
-                  :to="'/create?edit=poll&name=' + poll.name"
+                  v-if="auth.isAdmin || auth.isPollManager || auth.isProjectManager"
+                  :to="'/polls/' + poll.name + '/edit'"
                   class="dropdown-item"
                   @click="openMenu = null"
                 >Edit</RouterLink>
@@ -169,9 +169,9 @@
                 <button v-if="survey.status !== 'Active'"  class="dropdown-item" @click="updateSurveyStatus(survey, 'Active')">Activate</button>
                 <button v-if="survey.status !== 'Closed'"  class="dropdown-item danger" @click="updateSurveyStatus(survey, 'Closed')">Close</button>
                 <button v-if="survey.status !== 'Archived'" class="dropdown-item" @click="updateSurveyStatus(survey, 'Archived')">Archive</button>
-                <!-- Edit: only when no responses (PM/PollManager) or always (SM) -->
+                <!-- Edit survey -->
                 <RouterLink
-                  v-if="auth.isAdmin || ((auth.isPollManager || auth.isProjectManager) && (survey.total_responses || 0) === 0)"
+                  v-if="auth.isAdmin || auth.isPollManager || auth.isProjectManager"
                   :to="'/surveys/' + survey.name + '/edit'"
                   class="dropdown-item"
                   @click="openMenu = null"

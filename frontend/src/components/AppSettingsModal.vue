@@ -24,16 +24,17 @@
         <!-- Current Logo Card -->
         <div class="current-logo-card card">
           <div class="section-label-row">
-            <span class="label-text">Current Active Logo</span>
+            <span class="label-text">Current Branding</span>
             <span v-if="auth.companyLogo" class="badge badge-success">
               <span class="pulse-dot"></span> Active
             </span>
             <span v-else class="badge badge-neutral">Not Configured</span>
           </div>
 
-          <div class="logo-preview-box" :class="{ 'has-logo': !!auth.companyLogo }">
+          <div class="logo-preview-box centered-preview" :class="{ 'has-logo': !!auth.companyLogo }">
             <template v-if="auth.companyLogo">
-              <img :src="auth.companyLogo" alt="Company Logo" class="preview-img" />
+              <img :src="auth.companyLogo" alt="Company Logo" class="preview-img" style="display:block;margin:0 auto;" />
+              <div v-if="auth.companyName" class="preview-company-name">{{ auth.companyName }}</div>
             </template>
             <div v-else class="empty-logo-placeholder">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="placeholder-icon">
@@ -107,12 +108,30 @@
           </div>
         </div>
 
+        <!-- Company Name Input -->
+        <div class="form-group" style="margin-top: 0.25rem;">
+          <label class="form-label" style="margin-bottom: 0.4rem;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:middle">
+              <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            </svg>
+            Company Name <span class="text-xs text-muted" style="font-weight:400">(shown beside logo)</span>
+          </label>
+          <input
+            id="branding-company-name"
+            type="text"
+            class="form-control"
+            v-model="companyNameInput"
+            placeholder="e.g. Techwodo Global"
+            maxlength="120"
+          />
+        </div>
+
         <!-- Helper hint -->
         <div class="branding-notice">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="notice-icon">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
           </svg>
-          <span>Once uploaded, this logo will instantly appear at the top of <strong>every Take Survey interface</strong> and survey reports for respondents.</span>
+          <span>The logo and company name appear centered at the top of <strong>every Take Survey &amp; Take Poll interface</strong>.</span>
         </div>
 
       </div>
@@ -122,11 +141,11 @@
         <button class="btn btn-ghost" @click="$emit('close')">Cancel</button>
         <button
           class="btn btn-primary"
-          :disabled="!selectedFile || uploading"
+          :disabled="(!selectedFile && companyNameInput.trim() === (auth.companyName || '').trim()) || uploading"
           @click="uploadLogo"
         >
           <span v-if="uploading" class="spinner spinner-sm"></span>
-          <span v-else>Upload & Apply Logo</span>
+          <span v-else>{{ selectedFile ? 'Upload &amp; Save' : 'Save Changes' }}</span>
         </button>
       </div>
 
@@ -150,6 +169,7 @@ const selectedPreviewUrl = ref(null);
 const isDragging = ref(false);
 const uploading = ref(false);
 const removing = ref(false);
+const companyNameInput = ref(auth.companyName || "");
 
 const allowedExtensions = [".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif"];
 const maxSizeBytes = 5 * 1024 * 1024; // 5 MB
@@ -209,21 +229,32 @@ const formatFileSize = (bytes) => {
 };
 
 const uploadLogo = async () => {
-  if (!selectedFile.value) return;
   uploading.value = true;
   try {
-    const result = await frappeUpload("pollcast.api.upload_company_logo", selectedFile.value);
-    if (result?.logo) {
-      auth.setCompanyLogo(result.logo);
-      toast?.("Company logo updated successfully! It will now appear on all survey interfaces.", "success");
+    let result;
+    if (selectedFile.value) {
+      result = await frappeUpload(
+        "pollcast.api.upload_company_logo",
+        selectedFile.value,
+        { company_name: companyNameInput.value.trim() }
+      );
+    } else {
+      // Only updating company name
+      result = await frappeCall("pollcast.api.upload_company_logo", {
+        company_name: companyNameInput.value.trim(),
+      });
+    }
+    if (result?.success || result?.logo) {
+      auth.setCompanyBranding(result.logo || auth.companyLogo, result.company_name ?? companyNameInput.value.trim());
+      toast?.("Company branding updated successfully!", "success");
       clearSelectedFile();
-      emit("saved", result.logo);
+      emit("saved", { logo: result.logo, company_name: result.company_name });
       emit("close");
     } else if (result?.error) {
       toast?.(result.error, "error");
     }
   } catch (err) {
-    toast?.(err.message || "Failed to upload logo", "error");
+    toast?.(err.message || "Failed to save branding", "error");
   } finally {
     uploading.value = false;
   }
@@ -234,9 +265,9 @@ const removeLogo = async () => {
   removing.value = true;
   try {
     const res = await frappeCall("pollcast.api.remove_company_logo");
-    auth.setCompanyLogo(res?.logo || "");
+    auth.setCompanyBranding(res?.logo || "", auth.companyName);
     toast?.("Custom logo removed. Default branding restored.", "info");
-    emit("saved", res?.logo || "");
+    emit("saved", { logo: res?.logo || "" });
   } catch (err) {
     toast?.(err.message || "Failed to remove logo", "error");
   } finally {
@@ -257,6 +288,8 @@ const removeLogo = async () => {
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-lg), 0 0 32px var(--accent-glow);
 }
+.centered-preview { text-align: center; }
+.preview-company-name { font-weight: 600; font-size: 0.95rem; margin-top: 0.5rem; color: var(--text-primary); letter-spacing: 0.01em; }
 
 .modal-header {
   display: flex;

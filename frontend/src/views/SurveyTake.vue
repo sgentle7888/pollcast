@@ -14,8 +14,9 @@
 
     <!-- Success Screen -->
     <div v-else-if="submitted" class="success-screen card animate-fade-in-up">
-      <div v-if="displayLogo" class="survey-success-logo-wrap">
-        <img :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
+      <div v-if="displayLogo || displayCompanyName" class="survey-success-brand-wrap">
+        <img v-if="displayLogo" :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
+        <div v-if="displayCompanyName" class="survey-brand-name">{{ displayCompanyName }}</div>
       </div>
       <div class="success-icon">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -33,11 +34,11 @@
 
     <!-- Survey Form -->
     <div v-else-if="survey">
-      <!-- Branded Company Header (Shows in EVERY take survey interface) -->
-      <div v-if="displayLogo" class="survey-brand-header card card-glass">
+      <!-- Branded Company Header (Shows centered in EVERY take survey interface) -->
+      <div v-if="displayLogo || displayCompanyName" class="survey-brand-header card card-glass">
         <div class="survey-brand-inner">
-          <img :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
-          <div class="survey-brand-tagline">Official Participant Survey</div>
+          <img v-if="displayLogo" :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
+          <div v-if="displayCompanyName" class="survey-brand-name">{{ displayCompanyName }}</div>
         </div>
       </div>
 
@@ -49,7 +50,7 @@
             <span class="current">{{ survey.title }}</span>
           </div>
           <h1 class="page-title">{{ survey.title }}</h1>
-          <p v-if="survey.description" class="page-subtitle" v-html="sanitizedDescription"></p>
+          <p v-if="plainDescription" class="page-subtitle pre-line-text">{{ plainDescription }}</p>
         </div>
         <RouterLink v-if="!auth.isGuest" to="/surveys" class="btn btn-ghost">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -263,7 +264,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, inject } from "vue";
+import { ref, reactive, computed, onMounted, watch, inject } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "../stores/auth.js";
 import { frappeCall } from "../api/frappe.js";
@@ -282,23 +283,24 @@ const displayLogo = computed(() =>
   survey.value?.company_logo || auth.companyLogo || window.pollcast_company_logo || null
 );
 
-const sanitizedDescription = computed(() => {
+const displayCompanyName = computed(() =>
+  survey.value?.company_name || auth.companyName || window.pollcast_company_name || ""
+);
+
+const plainDescription = computed(() => {
   const desc = survey.value?.description || "";
   if (!desc) return "";
+  if (!/<[a-z][\s\S]*>/i.test(desc)) return desc;
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(desc, "text/html");
-    doc.querySelectorAll("script, iframe, object, embed, link, meta, style").forEach(el => el.remove());
-    doc.querySelectorAll("*").forEach(el => {
-      for (const attr of Array.from(el.attributes)) {
-        if (attr.name.startsWith("on") || attr.value.trim().toLowerCase().startsWith("javascript:")) {
-          el.removeAttribute(attr.name);
-        }
-      }
+    doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+    doc.querySelectorAll("p, div, li, tr").forEach((el) => {
+      el.after("\n");
     });
-    return doc.body.innerHTML;
+    return (doc.body.textContent || doc.body.innerText || "").trim();
   } catch {
-    return desc;
+    return desc.replace(/<[^>]+>/g, "").trim();
   }
 });
 
@@ -312,10 +314,30 @@ const participant = reactive({
   name: "", department: "", jobTitle: "", branch: "", yearsOfService: "",
 });
 
-onMounted(async () => {
+const loadSurvey = async () => {
+  const name = route.params.name;
+  if (!name) return;
+  loading.value = true;
+  error.value = null;
+  submitted.value = false;
+  survey.value = null;
+
+  for (const k in responses) delete responses[k];
+  for (const k in checkboxResponses) delete checkboxResponses[k];
+  additionalComments.value = "";
+  participant.name = "";
+  participant.department = "";
+  participant.jobTitle = "";
+  participant.branch = "";
+  participant.yearsOfService = "";
+
+  if (!auth.companyLogo && !auth.companyName) {
+    auth.fetchCompanyLogo();
+  }
+
   try {
     const result = await frappeCall("pollcast.api.get_survey", {
-      survey_name: route.params.name,
+      survey_name: name,
     });
     if (!result || result.error) {
       error.value = result?.error || "Survey not found";
@@ -336,7 +358,20 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+};
+
+onMounted(() => {
+  loadSurvey();
 });
+
+watch(
+  () => route.params.name,
+  (newName, oldName) => {
+    if (newName && newName !== oldName) {
+      loadSurvey();
+    }
+  }
+);
 
 // Question type groups
 const ratingQuestions  = computed(() => (survey.value?.questions || []).filter(q => q.question_type === "Rating Scale"));
@@ -522,41 +557,54 @@ const submitSurvey = async () => {
 /* Company Logo Branding Header */
 .survey-brand-header {
   margin-bottom: 1.5rem;
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-radius: var(--r-lg);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
 .survey-brand-inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  text-align: center;
+  gap: 0.5rem;
   width: 100%;
-  flex-wrap: wrap;
-  gap: 0.75rem;
 }
 
 .survey-brand-logo {
-  max-height: 52px;
-  max-width: 220px;
+  max-height: 60px;
+  max-width: 240px;
   object-fit: contain;
   display: block;
+  margin: 0 auto;
 }
 
-.survey-brand-tagline {
-  font-size: 0.75rem;
+.survey-brand-name {
+  font-size: 1.1rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  text-align: center;
 }
 
-.survey-success-logo-wrap {
+.pre-line-text {
+  white-space: pre-line;
+}
+
+.survey-success-brand-wrap {
   margin-bottom: 1.25rem;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
 }
 </style>
