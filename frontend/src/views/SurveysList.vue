@@ -169,16 +169,16 @@
                 <button v-if="survey.status !== 'Active'"  class="dropdown-item" @click="updateSurveyStatus(survey, 'Active')">Activate</button>
                 <button v-if="survey.status !== 'Closed'"  class="dropdown-item danger" @click="updateSurveyStatus(survey, 'Closed')">Close</button>
                 <button v-if="survey.status !== 'Archived'" class="dropdown-item" @click="updateSurveyStatus(survey, 'Archived')">Archive</button>
-                <!-- Edit: only when no responses (PM) or always (SM) -->
+                <!-- Edit: only when no responses (PM/PollManager) or always (SM) -->
                 <RouterLink
-                  v-if="auth.isAdmin || (auth.isProjectManager && (survey.total_responses || 0) === 0)"
-                  :to="'/create?edit=survey&name=' + survey.name"
+                  v-if="auth.isAdmin || ((auth.isPollManager || auth.isProjectManager) && (survey.total_responses || 0) === 0)"
+                  :to="'/surveys/' + survey.name + '/edit'"
                   class="dropdown-item"
                   @click="openMenu = null"
                 >Edit</RouterLink>
-                <!-- Delete: only when no responses (PM) or always (SM) -->
+                <!-- Delete: only when no responses (PM/PollManager) or always (SM) -->
                 <button
-                  v-if="auth.isAdmin || (auth.isProjectManager && (survey.total_responses || 0) === 0)"
+                  v-if="auth.isAdmin || ((auth.isPollManager || auth.isProjectManager) && (survey.total_responses || 0) === 0)"
                   class="dropdown-item danger"
                   @click="deleteSurvey(survey)"
                 >Delete</button>

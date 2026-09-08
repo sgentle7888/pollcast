@@ -1,17 +1,29 @@
 <template>
   <div class="create-view animate-fade-in-up">
+    <!-- Header -->
     <div class="page-header">
       <div>
         <div class="breadcrumbs">
           <RouterLink to="/">Home</RouterLink><span class="sep">/</span>
-          <span class="current">Create {{ type === 'poll' ? 'Poll' : 'Survey' }}</span>
+          <RouterLink v-if="isEditMode" to="/surveys">Surveys</RouterLink>
+          <span v-if="isEditMode" class="sep">/</span>
+          <span class="current">{{ isEditMode ? 'Edit Survey' : `Create ${type === 'poll' ? 'Poll' : 'Survey'}` }}</span>
         </div>
-        <h1 class="page-title">Create New</h1>
+        <h1 class="page-title">{{ isEditMode ? 'Edit Survey' : 'Create New' }}</h1>
+        <p v-if="isEditMode && form.title" class="page-subtitle text-secondary">
+          Editing <strong>{{ targetDocName }}</strong> &mdash; {{ form.title }}
+        </p>
       </div>
     </div>
 
-    <!-- Type selector (step 0) -->
-    <div v-if="step === 0" class="type-selector-screen animate-fade-in-up">
+    <!-- Loading State for Edit Mode -->
+    <div v-if="loadingDoc" class="loading-state card">
+      <div class="spinner"></div>
+      <p>Loading survey details…</p>
+    </div>
+
+    <!-- Type selector (step 0 - create mode only) -->
+    <div v-else-if="step === 0 && !isEditMode" class="type-selector-screen animate-fade-in-up">
       <p class="text-secondary text-lg" style="text-align: center; margin-bottom: 2rem;">What would you like to create?</p>
       <div class="type-cards">
         <div class="type-card card card-interactive" @click="selectType('poll')">
@@ -45,7 +57,7 @@
     </div>
 
     <!-- Steps 1+ : Form Wizard -->
-    <div v-if="step > 0" class="wizard-layout">
+    <div v-else-if="step > 0" class="wizard-layout">
       <!-- Stepper -->
       <div class="card stepper" style="padding: 1.5rem 2rem;">
         <div v-for="(s, i) in wizardSteps" :key="i" :class="['stepper-item', { active: step === i + 1, completed: step > i + 1 }]">
@@ -59,8 +71,26 @@
 
       <!-- Step 1: Basic Info -->
       <div v-if="step === 1" class="card wizard-step animate-fade-in-up">
-        <h3 class="step-heading">Basic Information</h3>
-        <p class="text-secondary text-sm" style="margin-bottom: 1.5rem;">Give your {{ type }} a clear title and optional description.</p>
+        <h3 class="step-heading">{{ isEditMode ? 'Basic Survey Information' : 'Basic Information' }}</h3>
+        <p class="text-secondary text-sm" style="margin-bottom: 1.5rem;">
+          {{ isEditMode ? 'Update the title, description, and timeline for this survey.' : `Give your ${type} a clear title and optional description.` }}
+        </p>
+
+        <!-- Warning if survey already has responses -->
+        <div v-if="isEditMode && responseCount > 0" class="response-warning-banner">
+          <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-warning" style="flex-shrink: 0; margin-top: 2px;">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div>
+              <strong class="text-primary">Survey has {{ responseCount }} recorded response(s)</strong>
+              <p class="text-secondary text-xs" style="margin-top: 0.2rem; line-height: 1.4;">
+                To protect response data integrity, only System Managers can perform structural question removals. You can freely update the title, instructions, and dates.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div class="form-grid">
           <div class="form-group" style="grid-column: span 2;">
@@ -68,21 +98,52 @@
             <input type="text" class="form-control" v-model="form.title" :placeholder="type === 'poll' ? 'e.g. Best programming language 2025?' : 'e.g. Q2 Employee Satisfaction Survey'" maxlength="200" />
           </div>
           <div class="form-group" style="grid-column: span 2;">
-            <label class="form-label">Description</label>
+            <label class="form-label">Description / Instructions</label>
             <textarea class="form-control" v-model="form.description" rows="3" placeholder="Optional context or instructions for participants…"></textarea>
           </div>
-          <div class="form-group">
+          <div v-if="isEditMode" class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-control" v-model="form.status">
+              <option value="Draft">Draft</option>
+              <option value="Active">Active</option>
+              <option value="Closed">Closed</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
+          <div class="form-group" :style="{ 'grid-column': isEditMode ? 'span 1' : 'span 1' }">
             <label class="form-label">Start Date</label>
             <input type="datetime-local" class="form-control" v-model="form.startDate" />
           </div>
-          <div class="form-group">
+          <div class="form-group" :style="{ 'grid-column': isEditMode ? 'span 2' : 'span 1' }">
             <label class="form-label">End Date</label>
             <input type="datetime-local" class="form-control" v-model="form.endDate" />
+          </div>
+
+          <!-- Survey Company Branding Info -->
+          <div class="survey-branding-card card-glass" style="grid-column: span 2;">
+            <div class="branding-card-content">
+              <div class="branding-thumb-box">
+                <img v-if="auth.companyLogo" :src="auth.companyLogo" alt="Company Logo" class="branding-thumb-img" />
+                <span v-else class="text-xs text-muted">No custom logo</span>
+              </div>
+              <div class="branding-meta">
+                <div class="text-sm font-semibold text-primary">Company Branding</div>
+                <p class="text-xs text-secondary">This company logo is automatically displayed on the survey interface for participants.</p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm branding-change-btn" @click="openSettingsModal">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+                </svg>
+                <span>{{ auth.companyLogo ? 'Change Logo' : 'Upload Logo' }}</span>
+              </button>
+            </div>
           </div>
         </div>
 
         <div class="wizard-nav">
-          <button class="btn btn-ghost" @click="step = 0">← Back</button>
+          <button v-if="!isEditMode" class="btn btn-ghost" @click="step = 0">← Back</button>
+          <RouterLink v-else to="/surveys" class="btn btn-ghost">← Cancel</RouterLink>
           <button class="btn btn-primary" :disabled="!form.title.trim()" @click="step = 2">
             Continue →
           </button>
@@ -93,7 +154,7 @@
       <div v-if="step === 2" class="card wizard-step animate-fade-in-up">
         <h3 class="step-heading">{{ type === 'poll' ? 'Poll Options' : 'Survey Questions' }}</h3>
         <p class="text-secondary text-sm" style="margin-bottom: 1.5rem;">
-          {{ type === 'poll' ? 'Add the options participants can vote for.' : 'Add questions to your survey.' }}
+          {{ type === 'poll' ? 'Add the options participants can vote for.' : 'Configure the questions in your survey.' }}
         </p>
 
         <!-- POLL Options -->
@@ -126,7 +187,12 @@
                 <input type="checkbox" :id="'req-' + qi" v-model="q.required" />
                 <label :for="'req-' + qi" class="text-sm">Required</label>
               </div>
-              <button class="btn btn-ghost btn-icon btn-sm" @click="removeQuestion(qi)" :disabled="form.questions.length <= 1" title="Remove question">
+              <button
+                class="btn btn-ghost btn-icon btn-sm"
+                @click="removeQuestion(qi)"
+                :disabled="form.questions.length <= 1 || (isEditMode && responseCount > 0 && !auth.isAdmin)"
+                :title="isEditMode && responseCount > 0 && !auth.isAdmin ? 'Cannot delete questions with existing responses' : 'Remove question'"
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -162,19 +228,22 @@
         <div class="wizard-nav">
           <button class="btn btn-ghost" @click="step = 1">← Back</button>
           <button class="btn btn-primary" :disabled="!canProceedStep2" @click="step = 3">
-            Review & Create →
+            {{ isEditMode ? 'Review & Save →' : 'Review & Create →' }}
           </button>
         </div>
       </div>
 
       <!-- Step 3: Review & Submit -->
       <div v-if="step === 3" class="card wizard-step animate-fade-in-up">
-        <h3 class="step-heading">Review & Create</h3>
-        <p class="text-secondary text-sm" style="margin-bottom: 1.5rem;">Check everything looks good before creating.</p>
+        <h3 class="step-heading">{{ isEditMode ? 'Review & Save Changes' : 'Review & Create' }}</h3>
+        <p class="text-secondary text-sm" style="margin-bottom: 1.5rem;">
+          {{ isEditMode ? 'Check the updated survey details before saving.' : 'Check everything looks good before creating.' }}
+        </p>
 
         <div class="review-section">
           <div class="review-row"><span class="review-label">Type</span><span class="badge badge-accent">{{ type === 'poll' ? 'Poll' : 'Survey' }}</span></div>
           <div class="review-row"><span class="review-label">Title</span><strong>{{ form.title }}</strong></div>
+          <div v-if="isEditMode" class="review-row"><span class="review-label">Status</span><span class="badge badge-neutral">{{ form.status }}</span></div>
           <div v-if="form.description" class="review-row"><span class="review-label">Description</span><span class="text-secondary text-sm">{{ form.description }}</span></div>
           <div v-if="form.startDate" class="review-row"><span class="review-label">Start</span><span>{{ form.startDate }}</span></div>
           <div v-if="form.endDate"   class="review-row"><span class="review-label">End</span><span>{{ form.endDate }}</span></div>
@@ -208,11 +277,12 @@
             <span v-if="submitting" class="spinner spinner-sm"></span>
             <span v-else>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Create {{ type === 'poll' ? 'Poll' : 'Survey' }}
+              {{ isEditMode ? 'Save Survey Changes' : `Create ${type === 'poll' ? 'Poll' : 'Survey'}` }}
             </span>
           </button>
         </div>
       </div>
+
       <!-- Step 4: Success + Shareable Link -->
       <div v-if="step === 4" class="card wizard-step animate-fade-in-up success-screen">
         <div class="success-icon-wrap">
@@ -220,9 +290,11 @@
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </div>
-        <h3 class="step-heading" style="text-align: center;">{{ type === 'poll' ? 'Poll' : 'Survey' }} Created! 🎉</h3>
+        <h3 class="step-heading" style="text-align: center;">
+          {{ isEditMode ? 'Survey Updated! 🎉' : `${type === 'poll' ? 'Poll' : 'Survey'} Created! 🎉` }}
+        </h3>
         <p class="text-secondary text-sm" style="text-align: center; margin-bottom: 1.75rem;">
-          <strong>{{ form.title }}</strong> is ready. Share the link below with your participants.
+          <strong>{{ form.title }}</strong> {{ isEditMode ? 'has been successfully updated.' : 'is ready. Share the link below with your participants.' }}
         </p>
 
         <!-- Shareable Link Box -->
@@ -252,11 +324,16 @@
         </div>
 
         <div class="wizard-nav" style="justify-content: center; gap: 1rem; margin-top: 1.75rem; flex-wrap: wrap;">
-          <button class="btn btn-ghost" @click="createAnother">+ Create Another</button>
+          <button v-if="!isEditMode" class="btn btn-ghost" @click="createAnother">+ Create Another</button>
+          <RouterLink to="/surveys" class="btn btn-ghost">Back to Surveys</RouterLink>
           <RouterLink
             :to="(type === 'poll' ? '/polls/' : '/surveys/') + createdName"
+            class="btn btn-primary"
+          >Take Survey</RouterLink>
+          <RouterLink
+            :to="'/surveys/' + createdName + '/results'"
             class="btn btn-secondary"
-          >View {{ type === 'poll' ? 'Poll' : 'Survey' }}</RouterLink>
+          >Survey Results</RouterLink>
         </div>
       </div>
     </div>
@@ -264,12 +341,16 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from "vue";
-import { useRouter, RouterLink } from "vue-router";
+import { ref, computed, inject, onMounted, watch } from "vue";
+import { useRouter, useRoute, RouterLink } from "vue-router";
+import { useAuthStore } from "../stores/auth.js";
 import { frappeCall } from "../api/frappe.js";
 
 const router = useRouter();
+const route  = useRoute();
+const auth   = useAuthStore();
 const toast  = inject("toast");
+const openSettingsModal = inject("openSettingsModal", () => {});
 
 const step = ref(0);
 const type = ref("poll");
@@ -277,14 +358,34 @@ const submitting = ref(false);
 const createdName = ref("");
 const linkCopied = ref(false);
 
+const loadingDoc = ref(false);
+const responseCount = ref(0);
+
+const targetDocName = computed(() => route.query.name || route.params.name || "");
+const isEditMode = computed(() => (route.query.edit === "survey" || !!route.params.name) && !!targetDocName.value);
+
 const shareUrl = computed(() => {
-  if (!createdName.value) return "";
+  const name = createdName.value || targetDocName.value;
+  if (!name) return "";
   const base = window.location.origin;
   const path = type.value === "poll"
-    ? `/pollcast#/polls/${createdName.value}`
-    : `/pollcast#/surveys/${createdName.value}`;
+    ? `/pollcast#/polls/${name}`
+    : `/pollcast#/surveys/${name}`;
   return base + path;
 });
+
+const toDatetimeLocal = (str) => {
+  if (!str) return "";
+  const d = new Date(str.replace(" ", "T"));
+  if (isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  const yr = d.getFullYear();
+  const mo = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hr = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  return `${yr}-${mo}-${day}T${hr}:${mi}`;
+};
 
 const copyLink = async () => {
   try {
@@ -292,7 +393,6 @@ const copyLink = async () => {
     linkCopied.value = true;
     setTimeout(() => { linkCopied.value = false; }, 2000);
   } catch {
-    // Fallback for older browsers
     const el = document.querySelector(".share-link-input");
     if (el) { el.select(); document.execCommand("copy"); }
     linkCopied.value = true;
@@ -306,6 +406,7 @@ const createAnother = () => {
   form.value = {
     title: "",
     description: "",
+    status: "Draft",
     startDate: "",
     endDate: "",
     options: [{ text: "" }, { text: "" }],
@@ -323,11 +424,65 @@ const wizardSteps = computed(() =>
 const form = ref({
   title: "",
   description: "",
+  status: "Draft",
   startDate: "",
   endDate: "",
   options: [{ text: "" }, { text: "" }],
   questions: [{ text: "", type: "Rating Scale", required: true, options: ["", ""] }],
 });
+
+const loadSurveyForEdit = async (name) => {
+  if (!name) return;
+  loadingDoc.value = true;
+  type.value = "survey";
+  step.value = 1;
+
+  try {
+    const res = await frappeCall("pollcast.api.get_survey", { survey_name: name });
+    if (res && !res.error) {
+      createdName.value = res.name;
+      responseCount.value = res.total_responses || 0;
+      form.value.title = res.title || "";
+      form.value.description = res.description || "";
+      form.value.status = res.status || "Draft";
+      form.value.startDate = toDatetimeLocal(res.start_date);
+      form.value.endDate = toDatetimeLocal(res.end_date);
+
+      if (res.questions && res.questions.length > 0) {
+        form.value.questions = res.questions.map(q => ({
+          name: q.name,
+          text: q.question_text || "",
+          type: q.question_type || "Rating Scale",
+          required: !!q.required,
+          options: Array.isArray(q.options) && q.options.length ? [...q.options] : ["", ""],
+          scale_min: q.scale_min || 1,
+          scale_max: q.scale_max || 5,
+        }));
+      }
+    } else {
+      toast?.(res?.error || "Survey not found", "error");
+    }
+  } catch (err) {
+    toast?.(err.message || "Failed to load survey", "error");
+  } finally {
+    loadingDoc.value = false;
+  }
+};
+
+onMounted(() => {
+  if (isEditMode.value) {
+    loadSurveyForEdit(targetDocName.value);
+  }
+});
+
+watch(
+  () => [route.query.name, route.params.name, route.query.edit],
+  () => {
+    if (isEditMode.value) {
+      loadSurveyForEdit(targetDocName.value);
+    }
+  }
+);
 
 const selectType = (t) => { type.value = t; step.value = 1; };
 
@@ -349,7 +504,33 @@ const submit = async () => {
   submitting.value = true;
   try {
     let result;
-    if (type.value === "poll") {
+    if (isEditMode.value) {
+      result = await frappeCall("pollcast.api.update_survey", {
+        survey_name: targetDocName.value,
+        title:       form.value.title,
+        description: form.value.description,
+        status:      form.value.status,
+        start_date:  form.value.startDate || null,
+        end_date:    form.value.endDate   || null,
+        questions:   form.value.questions
+          .filter((q) => q.text.trim())
+          .map((q) => ({
+            name:          q.name,
+            question_text: q.text,
+            question_type: q.type,
+            required:      q.required ? 1 : 0,
+            options:       q.options?.filter(Boolean) || [],
+            scale_min:     q.scale_min || 1,
+            scale_max:     q.scale_max || 5,
+          })),
+      });
+
+      if (result?.success || result?.name) {
+        toast?.("Survey updated successfully!", "success");
+        createdName.value = targetDocName.value;
+        step.value = 4;
+      }
+    } else if (type.value === "poll") {
       result = await frappeCall("pollcast.api.create_poll", {
         title:       form.value.title,
         description: form.value.description,
@@ -430,6 +611,65 @@ const submit = async () => {
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
 
+/* Response Warning Banner */
+.response-warning-banner {
+  padding: 1rem 1.25rem;
+  border-radius: var(--r-md);
+  border-left: 3px solid var(--warning);
+  background: var(--warning-dim);
+  margin-bottom: 1.5rem;
+}
+
+/* Survey Branding Card */
+.survey-branding-card {
+  padding: 1rem 1.25rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+}
+
+.branding-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.branding-thumb-box {
+  width: 80px;
+  height: 48px;
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  flex-shrink: 0;
+}
+
+:root[data-theme="light"] .branding-thumb-box {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.branding-thumb-img {
+  max-height: 40px;
+  max-width: 72px;
+  object-fit: contain;
+}
+
+.branding-meta {
+  flex: 1;
+  min-width: 180px;
+}
+
+.branding-change-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* Poll options builder */
 .options-builder { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
 .option-row-build { display: flex; align-items: center; gap: 0.75rem; }
@@ -468,10 +708,26 @@ const submit = async () => {
 .q-required { flex: 1; justify-content: flex-end; }
 .q-text { margin-bottom: 0.875rem; }
 
-.q-suboptions { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.875rem; background: var(--glass-bg); border-radius: var(--r-md); border: 1px solid var(--glass-border); }
+.q-suboptions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  background: var(--glass-bg);
+  border-radius: var(--r-md);
+  border: 1px solid var(--glass-border);
+}
 .q-subopt-row { display: flex; align-items: center; gap: 0.5rem; }
 
-.q-rating-preview { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--glass-bg); border-radius: var(--r-md); border: 1px solid var(--glass-border); }
+.q-rating-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--glass-bg);
+  border-radius: var(--r-md);
+  border: 1px solid var(--glass-border);
+}
 .rating-preview-dots { display: flex; gap: 0.5rem; }
 .rating-dot {
   width: 32px;
@@ -487,39 +743,32 @@ const submit = async () => {
 }
 .rating-dot.na { border-style: dashed; font-size: 0.65rem; width: 40px; border-radius: var(--r-sm); }
 
-/* Review */
+/* Review section */
 .review-section { display: flex; flex-direction: column; gap: 0.875rem; }
 .review-row { display: flex; align-items: flex-start; gap: 1rem; padding: 0.5rem 0; }
 .review-label { font-size: 0.8125rem; font-weight: 600; color: var(--text-muted); min-width: 100px; flex-shrink: 0; }
-
 .review-options, .review-questions { display: flex; flex-direction: column; gap: 0.5rem; }
 .review-option { display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; padding: 0.5rem 0.75rem; background: var(--glass-bg); border-radius: var(--r-sm); }
-.review-option-num {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--accent-dim);
-  color: var(--accent-light);
-  font-size: 0.7rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+.review-option-num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-dim); color: var(--accent-light); font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .review-q { padding: 0.875rem; background: var(--glass-bg); border-radius: var(--r-md); border: 1px solid var(--glass-border); }
 .review-q-header { display: flex; align-items: center; gap: 0.5rem; }
 .q-num-sm { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
 
-.wizard-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--glass-border); }
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+}
 
 @media (max-width: 768px) {
-  .type-cards { grid-template-columns: 1fr; }
-  .form-grid  { grid-template-columns: 1fr; }
+  .type-cards, .form-grid { grid-template-columns: 1fr; }
   .form-grid > * { grid-column: span 1 !important; }
 }
 
-/* ── Success Screen (Step 4) ── */
+/* Success Screen */
 .success-screen {
   display: flex;
   flex-direction: column;
@@ -588,5 +837,4 @@ const submit = async () => {
   background: var(--success);
   box-shadow: 0 0 14px rgba(34, 197, 94, 0.35);
 }
-
 </style>

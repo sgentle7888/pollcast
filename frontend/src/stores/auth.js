@@ -15,6 +15,8 @@ export const useAuthStore = defineStore("auth", () => {
   const isHRManager     = computed(() => roles.value.includes("HR Manager") || roles.value.includes("System Manager"));
   const isProjectManager= computed(() => roles.value.includes("Project Manager") || roles.value.includes("System Manager"));
 
+  const companyLogo     = ref(window.pollcast_company_logo || "");
+
   const initials = computed(() => {
     const name = employeeName.value || user.value || "GU";
     return name
@@ -25,9 +27,25 @@ export const useAuthStore = defineStore("auth", () => {
       .toUpperCase();
   });
 
+  async function fetchCompanyLogo() {
+    try {
+      const res = await frappeCall("pollcast.api.get_company_logo");
+      if (res && res.logo !== undefined) {
+        companyLogo.value = res.logo || "";
+      }
+    } catch (e) {
+      console.warn("fetchCompanyLogo error:", e.message);
+    }
+  }
+
+  function setCompanyLogo(url) {
+    companyLogo.value = url || "";
+  }
+
   async function init() {
     loading.value = true;
     error.value = null;
+    fetchCompanyLogo();
     try {
       const result = await frappeCall("pollcast.api.get_user_info");
       if (result) {
@@ -47,7 +65,8 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     user, roles, loading, error,
     isGuest, isAdmin, isPollManager, isHRManager, isProjectManager,
-    employeeName, initials,
-    init,
+    employeeName, initials, companyLogo,
+    init, fetchCompanyLogo, setCompanyLogo,
   };
 });
+

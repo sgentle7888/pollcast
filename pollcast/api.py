@@ -2,10 +2,17 @@ import frappe
 from frappe import _
 from frappe.utils import now, add_days, get_datetime
 import json
+import os
+import io
+import base64
+import xml.etree.ElementTree as ET
+from PIL import Image
+from frappe.utils.file_manager import save_file
 from datetime import datetime, timedelta
 import time
 from frappe.utils.response import Response
 from collections import defaultdict
+
 
 @frappe.whitelist(allow_guest=True)
 def get_user_info():
@@ -111,6 +118,126 @@ def get_poll(poll_name):
         return {'error': str(e)}
 
 
+def _validate_and_sanitize_image(filename, content):
+    """Validate image extension, size, and content. Return safe sanitized filename."""
+    if not filename:
+        frappe.throw(_("Filename is missing."), frappe.ValidationError)
+    if not content:
+        frappe.throw(_("File content is empty."), frappe.ValidationError)
+
+    ext = os.path.splitext(filename)[1].lower()
+    allowed_exts = {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif'}
+    if ext not in allowed_exts:
+        frappe.throw(
+            _("Invalid file type: {0}. Allowed types are: PNG, JPG, JPEG, SVG, WEBP, GIF.").format(ext),
+            frappe.ValidationError,
+        )
+
+    # Max size: 5MB
+    if len(content) > 5 * 1024 * 1024:
+        frappe.throw(_("File size exceeds 5MB limit."), frappe.ValidationError)
+
+    if ext in {'.png', '.jpg', '.jpeg', '.webp', '.gif'}:
+        try:
+            img = Image.open(io.BytesIO(content))
+            img.verify()
+        except Exception:
+            frappe.throw(_("Uploaded file is not a valid image or is corrupted."), frappe.ValidationError)
+    elif ext == '.svg':
+        try:
+            text = content.decode('utf-8', errors='ignore')
+            lowered = text.lower()
+            dangerous_tokens = ['<script', 'javascript:', 'onload=', 'onerror=', 'onclick=', 'onmouseover=', 'xlink:href=javascript:']
+            for token in dangerous_tokens:
+                if token in lowered:
+                    frappe.throw(_("Security violation: Malicious content detected in SVG file."), frappe.ValidationError)
+            # Ensure valid XML syntax
+            ET.fromstring(text)
+        except ET.ParseError:
+            frappe.throw(_("Invalid SVG file structure."), frappe.ValidationError)
+
+    base = os.path.splitext(os.path.basename(filename))[0]
+    safe_base = "".join(c for c in base if c.isalnum() or c in ('-', '_')) or 'company_logo'
+    clean_filename = f"{safe_base}_{frappe.generate_hash(length=8)}{ext}"
+    return clean_filename
+
+
+@frappe.whitelist(allow_guest=True)
+def get_company_logo():
+    """Retrieve company logo URL for display on survey interfaces."""
+    logo = frappe.db.get_default('pollcast_company_logo')
+    if not logo:
+        logo = frappe.db.get_single_value('Website Settings', 'app_logo')
+    return {'logo': logo or None}
+
+
+@frappe.whitelist()
+def upload_company_logo(filename=None, filedata=None):
+    """
+    Upload and register company logo.
+    Accessible by System Manager, Poll Manager, and Project Manager.
+    Supports multipart form-data or base64 filedata.
+    """
+    try:
+        roles = set(frappe.get_roles(frappe.session.user))
+        if not (roles & {'System Manager', 'Poll Manager', 'Project Manager'}):
+            frappe.throw(_("You do not have permission to update company branding."), frappe.PermissionError)
+
+        content = None
+        orig_filename = filename
+
+        # 1. Check if multipart file in frappe.request.files
+        if hasattr(frappe, 'request') and frappe.request and hasattr(frappe.request, 'files'):
+            file_obj = frappe.request.files.get('file')
+            if file_obj:
+                orig_filename = file_obj.filename
+                content = file_obj.read()
+
+        # 2. Check base64 filedata
+        if not content and filedata:
+            if ',' in filedata:
+                filedata = filedata.split(',', 1)[1]
+            content = base64.b64decode(filedata)
+
+        if not content or not orig_filename:
+            return {'error': 'No file uploaded or file content missing.'}
+
+        safe_filename = _validate_and_sanitize_image(orig_filename, content)
+
+        # Save via Frappe standard file manager
+        file_doc = save_file(safe_filename, content, dt=None, dn=None, is_private=0)
+        file_url = file_doc.file_url
+
+        frappe.db.set_default('pollcast_company_logo', file_url)
+        frappe.db.commit()
+
+        return {'success': True, 'logo': file_url}
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Upload company logo error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def remove_company_logo():
+    """Remove custom company logo and return default/fallback logo."""
+    try:
+        roles = set(frappe.get_roles(frappe.session.user))
+        if not (roles & {'System Manager', 'Poll Manager', 'Project Manager'}):
+            frappe.throw(_("You do not have permission to update company branding."), frappe.PermissionError)
+
+        frappe.db.set_default('pollcast_company_logo', None)
+        frappe.db.commit()
+
+        return get_company_logo()
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Remove company logo error: {str(e)}")
+        return {'error': str(e)}
+
+
 @frappe.whitelist(allow_guest=True)
 def get_survey(survey_name):
     """Get a single survey document including questions for the Take/Results pages"""
@@ -141,6 +268,8 @@ def get_survey(survey_name):
                 q_data['scale_max'] = q.scale_max or 5
             questions.append(q_data)
 
+        logo_info = get_company_logo()
+
         return {
             'name': survey.name,
             'title': survey.title,
@@ -151,6 +280,7 @@ def get_survey(survey_name):
             'end_date': str(survey.end_date) if survey.end_date else None,
             'total_responses': survey.total_responses,
             'questions': questions,
+            'company_logo': logo_info.get('logo'),
         }
     except Exception as e:
         frappe.log_error(f"Get survey error: {str(e)}")
@@ -1377,4 +1507,82 @@ def delete_survey(survey_name):
         raise
     except Exception as e:
         frappe.log_error(f"Delete survey error: {str(e)}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def update_survey(survey_name, title, description=None, start_date=None, end_date=None, questions=None, status=None):
+    """
+    Update an existing Survey document and its questions.
+    Accessible by System Manager, Poll Manager, and Project Manager.
+    Enforces that Project Managers cannot alter questions/survey if responses already exist.
+    """
+    try:
+        roles = set(frappe.get_roles(frappe.session.user))
+        if not (roles & {'System Manager', 'Poll Manager', 'Project Manager'}):
+            frappe.throw(_("You do not have permission to edit Surveys."), frappe.PermissionError)
+
+        if not survey_name or not frappe.db.exists('Survey', survey_name):
+            return {'error': 'Survey not found'}
+
+        survey = frappe.get_doc('Survey', survey_name)
+
+        has_responses = frappe.db.count('Survey Response', {'survey': survey_name}) > 0
+        if has_responses and 'System Manager' not in roles:
+            frappe.throw(
+                _("You cannot edit this Survey because it already has {0} response(s). Only a System Manager can make changes.").format(
+                    frappe.db.count('Survey Response', {'survey': survey_name})
+                ),
+                frappe.PermissionError,
+                title=_("Permission Denied"),
+            )
+
+        if not title or not title.strip():
+            return {'error': 'Survey title is required'}
+
+        survey.title = title.strip()
+        if description is not None:
+            survey.description = description
+        survey.start_date = start_date if start_date and start_date != 'null' else None
+        survey.end_date = end_date if end_date and end_date != 'null' else None
+
+        if status and status in ['Draft', 'Active', 'Closed', 'Archived']:
+            survey.status = status
+
+        if questions is not None:
+            if isinstance(questions, str):
+                questions = json.loads(questions)
+            questions = questions or []
+
+            if not questions:
+                return {'error': 'A survey needs at least one question'}
+
+            survey.set('questions', [])
+            for q in questions:
+                row = {
+                    'question_text': q.get('question_text') or q.get('text'),
+                    'question_type': q.get('question_type') or q.get('type') or 'Rating Scale',
+                    'required': 1 if (q.get('required') is True or q.get('required') == 1) else 0,
+                    'page_number': q.get('page_number') or 1,
+                }
+                opts = q.get('options') or []
+                if isinstance(opts, list):
+                    clean_opts = [str(opt).strip() for opt in opts if str(opt).strip()]
+                    row['options'] = '\n'.join(clean_opts)
+                elif isinstance(opts, str):
+                    row['options'] = opts.strip()
+
+                if row['question_type'] == 'Rating Scale':
+                    row['scale_min'] = int(q.get('scale_min') or 1)
+                    row['scale_max'] = int(q.get('scale_max') or 5)
+
+                survey.append('questions', row)
+
+        survey.save()
+        frappe.db.commit()
+        return {'success': True, 'name': survey.name}
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Update survey error: {str(e)}")
         return {'error': str(e)}

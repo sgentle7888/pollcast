@@ -40,8 +40,10 @@ const routes = [
   { path: "/polls/:name/results",   component: PollResults, meta: { title: "Poll Results" } },
   { path: "/surveys",               component: PollsList,   meta: { title: "Polls & Surveys", tab: "surveys" } },
   { path: "/surveys/create",        component: SurveyCreate, meta: { title: "Create", requiresAdmin: true } },
+  { path: "/surveys/:name/edit",    component: SurveyCreate, meta: { title: "Edit Survey", requiresAdmin: true } },
   { path: "/surveys/:name/results", component: SurveyResults, meta: { title: "Survey Results" } },
   { path: "/create",                component: SurveyCreate, meta: { title: "Create", requiresAdmin: true } },
+
 
   // ── Fallback for guests hitting a restricted page ────────────────────
   { path: "/guest-denied", component: GuestDenied, meta: { title: "Access Restricted", allowGuest: true } },

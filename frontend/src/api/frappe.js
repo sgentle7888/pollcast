@@ -60,6 +60,47 @@ export async function frappeCall(method, args = {}) {
 }
 
 /**
+ * Upload a file with multipart/form-data to a whitelisted Frappe method.
+ */
+export async function frappeUpload(method, file, extraArgs = {}) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("filename", file.name);
+  for (const [k, v] of Object.entries(extraArgs)) {
+    formData.append(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+  }
+
+  const response = await fetch(`/api/method/${method}`, {
+    method: "POST",
+    headers: {
+      "X-Frappe-CSRF-Token": getCsrfToken(),
+    },
+    body: formData,
+  });
+
+  if (response.status === 403) {
+    window.location.href = `/login?redirect-to=${encodeURIComponent(
+      window.location.pathname + window.location.hash,
+    )}`;
+    throw new Error("Unauthorised");
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    let msg = `HTTP ${response.status}`;
+    try {
+      const j = JSON.parse(text);
+      msg = j.exc_type || j.message || msg;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  const json = await response.json();
+  return json.message ?? json;
+}
+
+
+/**
  * GET a Frappe REST resource list.
  */
 export async function frappeGetList(

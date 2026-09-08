@@ -14,6 +14,9 @@
 
     <!-- Success Screen -->
     <div v-else-if="submitted" class="success-screen card animate-fade-in-up">
+      <div v-if="displayLogo" class="survey-success-logo-wrap">
+        <img :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
+      </div>
       <div class="success-icon">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
@@ -24,23 +27,31 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           View Results
         </RouterLink>
-        <RouterLink to="/surveys" class="btn btn-secondary">Back to Surveys</RouterLink>
+        <RouterLink v-if="!auth.isGuest" to="/surveys" class="btn btn-secondary">Back to Surveys</RouterLink>
       </div>
     </div>
 
     <!-- Survey Form -->
     <div v-else-if="survey">
+      <!-- Branded Company Header (Shows in EVERY take survey interface) -->
+      <div v-if="displayLogo" class="survey-brand-header card card-glass">
+        <div class="survey-brand-inner">
+          <img :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
+          <div class="survey-brand-tagline">Official Participant Survey</div>
+        </div>
+      </div>
+
       <!-- Header -->
       <div class="page-header">
         <div>
-          <div class="breadcrumbs">
+          <div class="breadcrumbs" v-if="!auth.isGuest">
             <RouterLink to="/surveys">Surveys</RouterLink><span class="sep">/</span>
             <span class="current">{{ survey.title }}</span>
           </div>
           <h1 class="page-title">{{ survey.title }}</h1>
-          <p v-if="survey.description" class="page-subtitle" v-html="survey.description"></p>
+          <p v-if="survey.description" class="page-subtitle" v-html="sanitizedDescription"></p>
         </div>
-        <RouterLink to="/surveys" class="btn btn-ghost">
+        <RouterLink v-if="!auth.isGuest" to="/surveys" class="btn btn-ghost">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           Back
         </RouterLink>
@@ -254,9 +265,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted, inject } from "vue";
 import { useRoute } from "vue-router";
+import { useAuthStore } from "../stores/auth.js";
 import { frappeCall } from "../api/frappe.js";
 
 const route = useRoute();
+const auth  = useAuthStore();
 const toast = inject("toast");
 
 const loading   = ref(true);
@@ -264,6 +277,30 @@ const submitting = ref(false);
 const submitted  = ref(false);
 const error      = ref(null);
 const survey     = ref(null);
+
+const displayLogo = computed(() =>
+  survey.value?.company_logo || auth.companyLogo || window.pollcast_company_logo || null
+);
+
+const sanitizedDescription = computed(() => {
+  const desc = survey.value?.description || "";
+  if (!desc) return "";
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(desc, "text/html");
+    doc.querySelectorAll("script, iframe, object, embed, link, meta, style").forEach(el => el.remove());
+    doc.querySelectorAll("*").forEach(el => {
+      for (const attr of Array.from(el.attributes)) {
+        if (attr.name.startsWith("on") || attr.value.trim().toLowerCase().startsWith("javascript:")) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    });
+    return doc.body.innerHTML;
+  } catch {
+    return desc;
+  }
+});
 
 // Responses: { [question_name]: value }
 const responses         = reactive({});
@@ -480,5 +517,46 @@ const submitSurvey = async () => {
   .submit-row { flex-direction: column; }
   .submit-row .btn { width: 100%; }
   .rating-legend { gap: 0.4rem; }
+}
+
+/* Company Logo Branding Header */
+.survey-brand-header {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.survey-brand-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.survey-brand-logo {
+  max-height: 52px;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+}
+
+.survey-brand-tagline {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.survey-success-logo-wrap {
+  margin-bottom: 1.25rem;
+  display: flex;
+  justify-content: center;
 }
 </style>

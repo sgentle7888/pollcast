@@ -18,5 +18,10 @@ def get_context(context):
 
     context.user = frappe.session.user
     context.csrf_token = frappe.sessions.get_csrf_token()
+    logo = frappe.db.get_default('pollcast_company_logo')
+    if not logo:
+        logo = frappe.db.get_single_value('Website Settings', 'app_logo')
+    context.company_logo = logo or ''
 
     return context
+

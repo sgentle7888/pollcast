@@ -87,6 +87,12 @@
         </div>
       </TransitionGroup>
     </div>
+
+    <!-- Company Branding / Settings Modal -->
+    <AppSettingsModal
+      v-if="showSettingsModal"
+      @close="showSettingsModal = false"
+    />
   </div>
 </template>
 
@@ -95,6 +101,7 @@ import { ref, computed, provide, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "./stores/auth.js";
 import AppSidebar from "./components/AppSidebar.vue";
+import AppSettingsModal from "./components/AppSettingsModal.vue";
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -103,6 +110,13 @@ onMounted(() => auth.init());
 
 const mobileOpen = ref(false);
 const sidebarCollapsed = ref(false);
+const showSettingsModal = ref(false);
+
+const openSettingsModal = () => {
+  showSettingsModal.value = true;
+};
+provide("openSettingsModal", openSettingsModal);
+
 
 const onCollapse = (val) => { sidebarCollapsed.value = val; };
 
