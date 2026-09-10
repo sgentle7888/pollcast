@@ -443,10 +443,17 @@
                 <option value="Multiple Choice">Multiple Choice</option>
                 <option value="Checkbox">Checkbox</option>
                 <option value="Text Input">Text Input</option>
+                <option value="Section Heading">Section Heading</option>
               </select>
               <div class="checkbox-group q-required">
-                <input type="checkbox" :id="'req-' + qi" v-model="q.required" />
-                <label :for="'req-' + qi" class="text-sm">Required</label>
+                <template v-if="q.type !== 'Section Heading'">
+                  <input
+                    type="checkbox"
+                    :id="'req-' + qi"
+                    v-model="q.required"
+                  />
+                  <label :for="'req-' + qi" class="text-sm">Required</label>
+                </template>
               </div>
               <button
                 class="btn btn-ghost btn-icon btn-sm"
@@ -481,7 +488,9 @@
               class="form-control q-text"
               v-model="q.text"
               :placeholder="
-                'Question ' + (qi + 1) + ' — what do you want to know?'
+                q.type === 'Section Heading'
+                  ? 'Section heading'
+                  : 'Question ' + (qi + 1) + ' — what do you want to know?'
               "
             />
 
@@ -537,22 +546,27 @@
             </div>
           </div>
 
-          <button class="btn btn-secondary" @click="addQuestion">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add Question
-          </button>
+          <div class="question-builder-actions">
+            <button class="btn btn-secondary" @click="addQuestion">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add Question
+            </button>
+            <button class="btn btn-ghost" @click="addSection">
+              + Add Section
+            </button>
+          </div>
         </div>
 
         <div class="wizard-nav">
@@ -1056,6 +1070,13 @@ const addQuestion = () =>
     type: "Rating Scale",
     required: false,
     options: ["", ""],
+  });
+const addSection = () =>
+  form.value.questions.push({
+    text: "",
+    type: "Section Heading",
+    required: false,
+    options: [],
   });
 const removeQuestion = (i) => form.value.questions.splice(i, 1);
 

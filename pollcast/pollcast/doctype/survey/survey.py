@@ -109,6 +109,8 @@ class Survey(Document):
         # Analyze each question
         questions_data = []
         for question in self.questions:
+            if question.question_type == 'Section Heading':
+                continue
             responses_for_question = question_responses.get(question.name, [])
             
             if question.question_type in ['Multiple Choice', 'Checkbox']:

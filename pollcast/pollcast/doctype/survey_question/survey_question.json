@@ -29,7 +29,7 @@
       "fieldtype": "Select",
       "in_list_view": 1,
       "label": "Question Type",
-      "options": "Multiple Choice\nCheckbox\nRating Scale\nText Input",
+      "options": "Multiple Choice\nCheckbox\nRating Scale\nText Input\nSection Heading",
       "reqd": 1
     },
     {

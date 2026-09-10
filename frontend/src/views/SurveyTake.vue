@@ -251,9 +251,103 @@
           </div>
         </div>
 
+        <!-- Ordered survey items when section headings are present -->
+        <template v-if="hasSectionHeadings">
+          <template v-for="q in survey.questions" :key="q.name">
+            <div
+              v-if="q.question_type === 'Section Heading'"
+              class="survey-section-heading"
+            >
+              <h3>{{ q.question_text }}</h3>
+            </div>
+            <div
+              v-else-if="q.question_type === 'Rating Scale'"
+              class="card question-card ordered-rating-card"
+              style="margin-bottom: 1rem"
+            >
+              <div class="question-title">
+                {{ q.question_text }}
+                <span v-if="q.required" class="mandatory-star">*</span>
+              </div>
+              <div class="ordered-rating-options">
+                <label v-for="score in [1, 2, 3, 4, 5]" :key="score">
+                  <input
+                    type="radio"
+                    :name="'q-' + q.name"
+                    :value="String(score)"
+                    v-model="responses[q.name]"
+                  />
+                  {{ score }}
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    :name="'q-' + q.name"
+                    value="N/A"
+                    v-model="responses[q.name]"
+                  />
+                  N/A
+                </label>
+              </div>
+            </div>
+            <div
+              v-else-if="
+                q.question_type === 'Multiple Choice' ||
+                q.question_type === 'Checkbox'
+              "
+              class="card question-card"
+              style="margin-bottom: 1rem"
+            >
+              <div class="question-title">
+                {{ q.question_text }}
+                <span v-if="q.required" class="mandatory-star">*</span>
+              </div>
+              <label
+                v-for="opt in q.options || []"
+                :key="opt"
+                class="choice-item"
+              >
+                <input
+                  v-if="q.question_type === 'Checkbox'"
+                  type="checkbox"
+                  :name="'q-' + q.name"
+                  :value="opt"
+                  v-model="checkboxResponses[q.name]"
+                  class="choice-check"
+                />
+                <input
+                  v-else
+                  type="radio"
+                  :name="'q-' + q.name"
+                  :value="opt"
+                  v-model="responses[q.name]"
+                  class="choice-radio"
+                />
+                <span class="choice-label">{{ opt }}</span>
+              </label>
+            </div>
+            <div
+              v-else-if="q.question_type === 'Text Input'"
+              class="card question-card"
+              style="margin-bottom: 1rem"
+            >
+              <div class="question-title">
+                {{ q.question_text }}
+                <span v-if="q.required" class="mandatory-star">*</span>
+              </div>
+              <textarea
+                class="form-control"
+                v-model="responses[q.name]"
+                rows="4"
+                placeholder="Your response…"
+              ></textarea>
+            </div>
+          </template>
+        </template>
+
         <!-- ───────── Rating Scale Questions (Tabular Matrix) ───────── -->
         <div
-          v-if="ratingQuestions.length > 0"
+          v-if="!hasSectionHeadings && ratingQuestions.length > 0"
           class="card rating-matrix-section"
           style="margin-bottom: 1.5rem"
         >
@@ -362,6 +456,7 @@
         <!-- ───────── Multiple Choice / Checkbox Questions ───────── -->
         <div
           v-for="q in choiceQuestions"
+          v-if="!hasSectionHeadings"
           :key="q.name"
           class="card question-card"
           style="margin-bottom: 1rem"
@@ -408,6 +503,7 @@
         <!-- ───────── Text Input Questions ───────── -->
         <div
           v-for="q in textQuestions"
+          v-if="!hasSectionHeadings"
           :key="q.name"
           class="card question-card"
           style="margin-bottom: 1rem"
@@ -635,6 +731,11 @@ const textQuestions = computed(() =>
     (q) => q.question_type === "Text Input",
   ),
 );
+const hasSectionHeadings = computed(() =>
+  (survey.value?.questions || []).some(
+    (q) => q.question_type === "Section Heading",
+  ),
+);
 
 const totalRequired = computed(
   () => (survey.value?.questions || []).filter((q) => q.required).length,
@@ -715,6 +816,30 @@ const submitSurvey = async () => {
 </script>
 
 <style scoped>
+.survey-section-heading {
+  margin: 2rem 0 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+.survey-section-heading h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-primary, #1f2937);
+}
+
+.ordered-rating-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.ordered-rating-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .survey-take {
   display: flex;
   flex-direction: column;
