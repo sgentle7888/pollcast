@@ -174,7 +174,7 @@ def get_company_logo():
         logo = frappe.db.get_single_value('Website Settings', 'app_logo')
 
     company_name = frappe.db.get_default('pollcast_company_name')
-    if not company_name:
+    if company_name is None:
         company_name = (
             frappe.db.get_single_value('Website Settings', 'app_name') or
             frappe.db.get_value('System Settings', None, 'app_name') or
@@ -182,7 +182,7 @@ def get_company_logo():
         )
     return {
         'logo': logo or None,
-        'company_name': company_name or None,
+        'company_name': company_name if company_name else None,
     }
 
 
@@ -201,7 +201,7 @@ def upload_company_logo(filename=None, filedata=None, company_name=None):
         # Update company_name if passed
         if company_name is not None:
             clean_name = str(company_name).strip()
-            frappe.db.set_default('pollcast_company_name', clean_name if clean_name else None)
+            frappe.db.set_default('pollcast_company_name', clean_name)
 
         content = None
         orig_filename = filename

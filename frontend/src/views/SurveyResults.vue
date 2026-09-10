@@ -4,21 +4,34 @@
     <div class="page-header" v-if="survey">
       <div>
         <div class="breadcrumbs">
-          <RouterLink to="/surveys">Surveys</RouterLink><span class="sep">/</span>
+          <RouterLink to="/surveys">Surveys</RouterLink
+          ><span class="sep">/</span>
           <span class="current">{{ survey.title }} Results</span>
         </div>
         <h1 class="page-title">📊 {{ survey.title }} Results</h1>
-        <p class="page-subtitle" v-if="survey.description" v-html="survey.description"></p>
+        <div
+          class="page-subtitle rich-description"
+          v-if="sanitizedDescription"
+          v-html="sanitizedDescription"
+        ></div>
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary btn-sm" @click="printPage">
           Export PDF
         </button>
-        <button class="btn btn-secondary btn-sm" @click="exportData('csv')" :disabled="exporting">
+        <button
+          class="btn btn-secondary btn-sm"
+          @click="exportData('csv')"
+          :disabled="exporting"
+        >
           <span v-if="exporting" class="spinner spinner-sm"></span>
           <span v-else>Export CSV</span>
         </button>
-        <RouterLink v-if="survey.status === 'Active'" :to="'/surveys/' + survey.name" class="btn btn-primary btn-sm">
+        <RouterLink
+          v-if="survey.status === 'Active'"
+          :to="'/surveys/' + survey.name"
+          class="btn btn-primary btn-sm"
+        >
           Take Survey
         </RouterLink>
         <RouterLink to="/surveys" class="btn btn-secondary btn-sm">
@@ -34,12 +47,22 @@
     </div>
 
     <!-- Empty/No Data -->
-    <div v-else-if="!analytics || analytics.survey.total_responses === 0" class="empty-state card">
+    <div
+      v-else-if="!analytics || analytics.survey.total_responses === 0"
+      class="empty-state card"
+    >
       <div class="empty-icon">📊</div>
       <h3>No Responses Yet</h3>
-      <p class="text-secondary">No customer or participant satisfaction scores have been logged for this survey yet.</p>
-      <div style="margin-top: 1rem; display: flex; gap: 1rem;">
-        <RouterLink v-if="survey?.status === 'Active'" :to="'/surveys/' + survey?.name" class="btn btn-primary btn-sm">
+      <p class="text-secondary">
+        No customer or participant satisfaction scores have been logged for this
+        survey yet.
+      </p>
+      <div style="margin-top: 1rem; display: flex; gap: 1rem">
+        <RouterLink
+          v-if="survey?.status === 'Active'"
+          :to="'/surveys/' + survey?.name"
+          class="btn btn-primary btn-sm"
+        >
           ✍️ Submit First Response
         </RouterLink>
       </div>
@@ -48,39 +71,53 @@
     <!-- Main Results Grid -->
     <div v-else class="results-grid">
       <!-- KPIs -->
-      <div class="kpi-row kpi-grid" style="margin-bottom: 1.5rem;">
+      <div class="kpi-row kpi-grid" style="margin-bottom: 1.5rem">
         <div class="stat-card card animate-fade-in-up stagger-1">
           <div class="stat-icon stat-icon-accent">👥</div>
           <div class="stat-body">
             <span class="stat-label">Total Responses</span>
-            <span class="stat-value">{{ analytics.survey.total_responses }}</span>
+            <span class="stat-value">{{
+              analytics.survey.total_responses
+            }}</span>
           </div>
         </div>
         <div class="stat-card card animate-fade-in-up stagger-2">
           <div class="stat-icon stat-icon-violet">⭐</div>
           <div class="stat-body">
             <span class="stat-label">Avg Completion Rate</span>
-            <span class="stat-value">{{ analytics.survey.completion_rate }}%</span>
+            <span class="stat-value"
+              >{{ analytics.survey.completion_rate }}%</span
+            >
           </div>
         </div>
         <div class="stat-card card animate-fade-in-up stagger-3">
           <div class="stat-icon stat-icon-success">🎯</div>
           <div class="stat-body">
             <span class="stat-label">Unique Respondents</span>
-            <span class="stat-value">{{ analytics.survey.unique_respondents }}</span>
+            <span class="stat-value">{{
+              analytics.survey.unique_respondents
+            }}</span>
           </div>
         </div>
         <div class="stat-card card animate-fade-in-up stagger-4">
           <div class="stat-icon stat-icon-warning">⏱️</div>
           <div class="stat-body">
             <span class="stat-label">Avg. Completion Time</span>
-            <span class="stat-value" style="font-size: 1.5rem;">{{ analytics.survey.avg_completion_time ? analytics.survey.avg_completion_time + 'm' : 'N/A' }}</span>
+            <span class="stat-value" style="font-size: 1.5rem">{{
+              analytics.survey.avg_completion_time
+                ? analytics.survey.avg_completion_time + "m"
+                : "N/A"
+            }}</span>
           </div>
         </div>
       </div>
 
       <!-- Charts Row -->
-      <div v-if="hasRatingQuestions" class="grid-2" style="margin-bottom: 1.5rem;">
+      <div
+        v-if="hasRatingQuestions"
+        class="grid-2"
+        style="margin-bottom: 1.5rem"
+      >
         <!-- Radar performance map -->
         <div class="card chart-card animate-fade-in-up stagger-2">
           <div class="chart-header">
@@ -103,59 +140,144 @@
       </div>
 
       <!-- Detailed Breakdown -->
-      <div class="card animate-fade-in-up stagger-4" style="margin-bottom: 1.5rem;">
-        <h3 class="section-title" style="margin-bottom: 1rem;">Detailed Question Analytics</h3>
+      <div
+        class="card animate-fade-in-up stagger-4"
+        style="margin-bottom: 1.5rem"
+      >
+        <h3 class="section-title" style="margin-bottom: 1rem">
+          Detailed Question Analytics
+        </h3>
         <div class="question-analytics-list">
-          <div v-for="(q, index) in analytics.question_analytics" :key="q.question_id" class="card-elevated" style="margin-bottom: 1rem; padding: 1.25rem;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <div
+            v-for="(q, index) in analytics.question_analytics"
+            :key="q.question_id"
+            class="card-elevated"
+            style="margin-bottom: 1rem; padding: 1.25rem"
+          >
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                margin-bottom: 0.75rem;
+              "
+            >
               <div>
-                <span class="badge badge-neutral" style="margin-right: 0.5rem;">Q{{ index + 1 }}</span>
+                <span class="badge badge-neutral" style="margin-right: 0.5rem"
+                  >Q{{ index + 1 }}</span
+                >
                 <span class="badge badge-accent">{{ q.question_type }}</span>
               </div>
-              <span class="text-xs text-muted">{{ q.total_responses }} responses</span>
+              <span class="text-xs text-muted"
+                >{{ q.total_responses }} responses</span
+              >
             </div>
-            <h4 style="margin-bottom: 0.75rem; font-size: 1rem;">{{ q.question_text }}</h4>
+            <h4 style="margin-bottom: 0.75rem; font-size: 1rem">
+              {{ q.question_text }}
+            </h4>
 
             <!-- Rating distribution -->
-            <div v-if="q.question_type === 'Rating Scale'" class="rating-breakdown">
-              <div class="rating-score-pill" style="margin-bottom: 0.75rem;">
-                Average Rating: <strong class="text-accent" style="font-size: 1.15rem; margin-left: 0.25rem;">{{ q.average_rating }} / 5.0</strong>
+            <div
+              v-if="q.question_type === 'Rating Scale'"
+              class="rating-breakdown"
+            >
+              <div class="rating-score-pill" style="margin-bottom: 0.75rem">
+                Average Rating:
+                <strong
+                  class="text-accent"
+                  style="font-size: 1.15rem; margin-left: 0.25rem"
+                  >{{ q.average_rating }} / 5.0</strong
+                >
               </div>
               <div class="distribution-bars">
-                <div v-for="score in ['5','4','3','2','1']" :key="score" class="dist-row">
+                <div
+                  v-for="score in ['5', '4', '3', '2', '1']"
+                  :key="score"
+                  class="dist-row"
+                >
                   <span class="dist-score">{{ score }}★</span>
-                  <div class="progress-track" style="flex: 1; height: 8px;">
-                    <div class="progress-fill" :style="{ width: getRatingPct(q, score) + '%', background: getRatingColor(score) }"></div>
+                  <div class="progress-track" style="flex: 1; height: 8px">
+                    <div
+                      class="progress-fill"
+                      :style="{
+                        width: getRatingPct(q, score) + '%',
+                        background: getRatingColor(score),
+                      }"
+                    ></div>
                   </div>
-                  <span class="dist-count">{{ q.rating_distribution?.[score] ?? 0 }}</span>
+                  <span class="dist-count">{{
+                    q.rating_distribution?.[score] ?? 0
+                  }}</span>
                 </div>
               </div>
             </div>
 
             <!-- Choice options breakdown -->
-            <div v-if="q.question_type === 'Multiple Choice' || q.question_type === 'Checkbox'" class="choices-breakdown">
-              <div v-for="(count, opt) in q.option_counts" :key="opt" class="dist-row">
-                <span class="dist-score" style="min-width: 120px; font-weight: 500;">{{ opt }}</span>
-                <div class="progress-track" style="flex: 1; height: 8px;">
-                  <div class="progress-fill" :style="{ width: getOptionPct(q, count) + '%' }"></div>
+            <div
+              v-if="
+                q.question_type === 'Multiple Choice' ||
+                q.question_type === 'Checkbox'
+              "
+              class="choices-breakdown"
+            >
+              <div
+                v-for="(count, opt) in q.option_counts"
+                :key="opt"
+                class="dist-row"
+              >
+                <span
+                  class="dist-score"
+                  style="min-width: 120px; font-weight: 500"
+                  >{{ opt }}</span
+                >
+                <div class="progress-track" style="flex: 1; height: 8px">
+                  <div
+                    class="progress-fill"
+                    :style="{ width: getOptionPct(q, count) + '%' }"
+                  ></div>
                 </div>
-                <span class="dist-count">{{ count }} ({{ getOptionPct(q, count) }}%)</span>
+                <span class="dist-count"
+                  >{{ count }} ({{ getOptionPct(q, count) }}%)</span
+                >
               </div>
             </div>
 
             <!-- Text responses -->
-            <div v-if="q.question_type === 'Text Input'" class="text-responses-breakdown">
-              <div class="sentiment-box" style="margin-bottom: 0.75rem;" v-if="q.sentiment_summary">
-                Sentiment: 
-                <span :class="['badge', 'badge-' + (q.sentiment_summary.sentiment || 'neutral')]">
+            <div
+              v-if="q.question_type === 'Text Input'"
+              class="text-responses-breakdown"
+            >
+              <div
+                class="sentiment-box"
+                style="margin-bottom: 0.75rem"
+                v-if="q.sentiment_summary"
+              >
+                Sentiment:
+                <span
+                  :class="[
+                    'badge',
+                    'badge-' + (q.sentiment_summary.sentiment || 'neutral'),
+                  ]"
+                >
                   {{ q.sentiment_summary.sentiment }}
                 </span>
-                <span class="text-xs text-muted" style="margin-left: 0.5rem;" v-if="q.sentiment_summary.confidence">
-                  (Confidence: {{ Math.round(q.sentiment_summary.confidence * 100) }}%)
+                <span
+                  class="text-xs text-muted"
+                  style="margin-left: 0.5rem"
+                  v-if="q.sentiment_summary.confidence"
+                >
+                  (Confidence:
+                  {{ Math.round(q.sentiment_summary.confidence * 100) }}%)
                 </span>
               </div>
               <div class="comments-list">
-                <div v-for="(comment, cidx) in q.text_responses" :key="cidx" class="comment-bubble">
+                <div
+                  v-for="(comment, cidx) in q.text_responses"
+                  :key="cidx"
+                  class="comment-bubble"
+                >
                   {{ comment }}
                 </div>
               </div>
@@ -172,6 +294,7 @@ import { ref, computed, onMounted, nextTick, inject } from "vue";
 import { useRoute } from "vue-router";
 import { frappeCall } from "../api/frappe.js";
 import Chart from "chart.js/auto";
+import DOMPurify from "dompurify";
 
 const route = useRoute();
 const toast = inject("toast");
@@ -184,6 +307,9 @@ const loading = ref(true);
 const exporting = ref(false);
 const survey = ref(null);
 const analytics = ref(null);
+const sanitizedDescription = computed(() =>
+  DOMPurify.sanitize(survey.value?.description || ""),
+);
 
 const radarChartRef = ref(null);
 const barChartRef = ref(null);
@@ -193,20 +319,24 @@ let barChart = null;
 const hasRatingQuestions = computed(() => {
   if (!analytics.value || !analytics.value.question_analytics) return false;
   return analytics.value.question_analytics.some(
-    (q) => q.question_type === "Rating Scale"
+    (q) => q.question_type === "Rating Scale",
   );
 });
 
 onMounted(async () => {
   try {
-    const sDoc = await frappeCall("pollcast.api.get_survey", { survey_name: route.params.name });
+    const sDoc = await frappeCall("pollcast.api.get_survey", {
+      survey_name: route.params.name,
+    });
     if (!sDoc || sDoc.error) {
       toast?.("Survey not found", "error");
       return;
     }
     survey.value = sDoc;
 
-    const data = await frappeCall("pollcast.api.get_survey_analytics", { survey_id: route.params.name });
+    const data = await frappeCall("pollcast.api.get_survey_analytics", {
+      survey_id: route.params.name,
+    });
     if (data && !data.error) {
       analytics.value = data;
     }
@@ -232,7 +362,13 @@ const getOptionPct = (q, count) => {
 };
 
 const getRatingColor = (score) => {
-  const colors = { 1: "#EF4444", 2: "#F97316", 3: "#F59E0B", 4: "#84CC16", 5: "#22C55E" };
+  const colors = {
+    1: "#EF4444",
+    2: "#F97316",
+    3: "#F59E0B",
+    4: "#84CC16",
+    5: "#22C55E",
+  };
   return colors[score] || "var(--accent)";
 };
 
@@ -240,12 +376,14 @@ const renderCharts = () => {
   if (!analytics.value || !analytics.value.question_analytics) return;
 
   const ratingQuestions = analytics.value.question_analytics.filter(
-    (q) => q.question_type === "Rating Scale"
+    (q) => q.question_type === "Rating Scale",
   );
   if (ratingQuestions.length === 0) return;
 
   const labels = ratingQuestions.map((q) =>
-    q.question_text.length > 25 ? q.question_text.slice(0, 25) + "…" : q.question_text
+    q.question_text.length > 25
+      ? q.question_text.slice(0, 25) + "…"
+      : q.question_text,
   );
   const scores = ratingQuestions.map((q) => q.average_rating || 0);
 
@@ -366,13 +504,34 @@ const exportData = async (format) => {
 </script>
 
 <style scoped>
-.survey-results-view { display: flex; flex-direction: column; }
+.survey-results-view {
+  display: flex;
+  flex-direction: column;
+}
 
-.results-grid { display: flex; flex-direction: column; }
+.results-grid {
+  display: flex;
+  flex-direction: column;
+}
 
-.dist-row { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8125rem; margin-bottom: 0.4rem; }
-.dist-score { min-width: 32px; color: var(--text-secondary); font-weight: 600; }
-.dist-count { min-width: 24px; text-align: right; color: var(--text-muted); font-weight: 500; }
+.dist-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  margin-bottom: 0.4rem;
+}
+.dist-score {
+  min-width: 32px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.dist-count {
+  min-width: 24px;
+  text-align: right;
+  color: var(--text-muted);
+  font-weight: 500;
+}
 
 .comment-bubble {
   background: var(--glass-bg);
@@ -384,5 +543,7 @@ const exportData = async (format) => {
   margin-bottom: 0.5rem;
   line-height: 1.4;
 }
-.comment-bubble:last-child { margin-bottom: 0; }
+.comment-bubble:last-child {
+  margin-bottom: 0;
+}
 </style>

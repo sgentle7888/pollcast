@@ -54,7 +54,7 @@
               @click="removeLogo"
             >
               <AppIcons name="trash" size="14" />
-              <span>{{ removing ? 'Removing…' : 'Remove Logo' }}</span>
+              <span>{{ removing ? 'Removing…' : (confirmRemove ? 'Click again to confirm' : 'Remove Logo') }}</span>
             </button>
           </div>
         </div>
@@ -244,11 +244,13 @@ const uploadLogo = async () => {
         company_name: companyNameInput.value.trim(),
       });
     }
-    if (result?.success || result?.logo) {
-      auth.setCompanyBranding(result.logo || auth.companyLogo, result.company_name ?? companyNameInput.value.trim());
+    if (result?.success || result?.logo !== undefined || result?.company_name !== undefined) {
+      const savedName = result.company_name || "";
+      const savedLogo = result.logo !== undefined ? (result.logo || "") : auth.companyLogo;
+      auth.setCompanyBranding(savedLogo, savedName);
       toast?.("Company branding updated successfully!", "success");
       clearSelectedFile();
-      emit("saved", { logo: result.logo, company_name: result.company_name });
+      emit("saved", { logo: savedLogo, company_name: savedName });
       emit("close");
     } else if (result?.error) {
       toast?.(result.error, "error");
@@ -260,8 +262,15 @@ const uploadLogo = async () => {
   }
 };
 
+const confirmRemove = ref(false);
+
 const removeLogo = async () => {
-  if (!confirm("Are you sure you want to remove the custom company logo?")) return;
+  if (!confirmRemove.value) {
+    confirmRemove.value = true;
+    setTimeout(() => { confirmRemove.value = false; }, 4000);
+    return;
+  }
+  confirmRemove.value = false;
   removing.value = true;
   try {
     const res = await frappeCall("pollcast.api.remove_company_logo");

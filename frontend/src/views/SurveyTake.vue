@@ -1,44 +1,112 @@
 <template>
   <div class="survey-take animate-fade-in-up">
-
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
-      <div class="spinner"></div><p>Loading survey…</p>
+      <div class="spinner"></div>
+      <p>Loading survey…</p>
     </div>
 
     <!-- Error -->
-    <div v-else-if="error" class="error-state card" style="text-align: center; padding: 3rem;">
-      <p class="text-danger" style="font-size: 1.25rem; margin-bottom: 1rem;">⚠️ {{ error }}</p>
-      <RouterLink to="/surveys" class="btn btn-secondary">← Back to Surveys</RouterLink>
+    <div
+      v-else-if="error"
+      class="error-state card"
+      style="text-align: center; padding: 3rem"
+    >
+      <p class="text-danger" style="font-size: 1.25rem; margin-bottom: 1rem">
+        ⚠️ {{ error }}
+      </p>
+      <RouterLink to="/surveys" class="btn btn-secondary"
+        >← Back to Surveys</RouterLink
+      >
     </div>
 
     <!-- Success Screen -->
     <div v-else-if="submitted" class="success-screen card animate-fade-in-up">
-      <div v-if="displayLogo || displayCompanyName" class="survey-success-brand-wrap">
-        <img v-if="displayLogo" :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
-        <div v-if="displayCompanyName" class="survey-brand-name">{{ displayCompanyName }}</div>
+      <div
+        v-if="displayLogo || displayCompanyName"
+        class="survey-success-brand-wrap"
+      >
+        <img
+          v-if="displayLogo"
+          :src="displayLogo"
+          alt="Company Logo"
+          class="survey-brand-logo"
+        />
+        <div v-if="displayCompanyName" class="survey-brand-name">
+          {{ displayCompanyName }}
+        </div>
       </div>
       <div class="success-icon">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
       </div>
       <h2>Thank you for your feedback!</h2>
-      <p class="text-secondary" style="max-width: 400px;">Your response to <strong>{{ survey.title }}</strong> has been recorded successfully.</p>
-      <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; justify-content: center;">
-        <RouterLink :to="'/surveys/' + survey.name + '/results'" class="btn btn-primary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <p class="text-secondary" style="max-width: 400px">
+        Your response to <strong>{{ survey.title }}</strong> has been recorded
+        successfully.
+      </p>
+      <div
+        style="
+          display: flex;
+          gap: 1rem;
+          margin-top: 1.5rem;
+          flex-wrap: wrap;
+          justify-content: center;
+        "
+      >
+        <RouterLink
+          :to="'/surveys/' + survey.name + '/results'"
+          class="btn btn-primary"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
           View Results
         </RouterLink>
-        <RouterLink v-if="!auth.isGuest" to="/surveys" class="btn btn-secondary">Back to Surveys</RouterLink>
+        <RouterLink v-if="!auth.isGuest" to="/surveys" class="btn btn-secondary"
+          >Back to Surveys</RouterLink
+        >
       </div>
     </div>
 
     <!-- Survey Form -->
     <div v-else-if="survey">
       <!-- Branded Company Header (Shows centered in EVERY take survey interface) -->
-      <div v-if="displayLogo || displayCompanyName" class="survey-brand-header card card-glass">
+      <div
+        v-if="displayLogo || displayCompanyName"
+        class="survey-brand-header card card-glass"
+      >
         <div class="survey-brand-inner">
-          <img v-if="displayLogo" :src="displayLogo" alt="Company Logo" class="survey-brand-logo" />
-          <div v-if="displayCompanyName" class="survey-brand-name">{{ displayCompanyName }}</div>
+          <img
+            v-if="displayLogo"
+            :src="displayLogo"
+            alt="Company Logo"
+            class="survey-brand-logo"
+          />
+          <div v-if="displayCompanyName" class="survey-brand-name">
+            {{ displayCompanyName }}
+          </div>
         </div>
       </div>
 
@@ -46,55 +114,128 @@
       <div class="page-header">
         <div>
           <div class="breadcrumbs" v-if="!auth.isGuest">
-            <RouterLink to="/surveys">Surveys</RouterLink><span class="sep">/</span>
+            <RouterLink to="/surveys">Surveys</RouterLink
+            ><span class="sep">/</span>
             <span class="current">{{ survey.title }}</span>
           </div>
           <h1 class="page-title">{{ survey.title }}</h1>
-          <p v-if="plainDescription" class="page-subtitle pre-line-text">{{ plainDescription }}</p>
+          <div
+            v-if="sanitizedDescription"
+            class="page-subtitle rich-description"
+            v-html="sanitizedDescription"
+          ></div>
         </div>
         <RouterLink v-if="!auth.isGuest" to="/surveys" class="btn btn-ghost">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
           Back
         </RouterLink>
       </div>
 
       <!-- Progress bar -->
-      <div class="progress-bar-wrap card-glass" style="padding: 0.875rem 1.25rem; margin-bottom: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <div
+        class="progress-bar-wrap card-glass"
+        style="padding: 0.875rem 1.25rem; margin-bottom: 1.5rem"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+          "
+        >
           <span class="text-sm font-semibold text-secondary">Progress</span>
-          <span class="text-sm font-semibold text-accent">{{ answeredCount }} / {{ totalRequired }} required questions</span>
+          <span class="text-sm font-semibold text-accent"
+            >{{ answeredCount }} / {{ totalRequired }} required questions</span
+          >
         </div>
         <div class="progress-track">
-          <div class="progress-fill" :style="{ width: progressPct + '%' }"></div>
+          <div
+            class="progress-fill"
+            :style="{ width: progressPct + '%' }"
+          ></div>
         </div>
       </div>
 
       <form @submit.prevent="submitSurvey">
-
         <!-- ───────── Participant Information ───────── -->
-        <div class="card participant-info-section" style="margin-bottom: 1.5rem;">
+        <div
+          class="card participant-info-section"
+          style="margin-bottom: 1.5rem"
+        >
           <h3 class="section-heading">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:0.35rem"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="
+                display: inline;
+                vertical-align: middle;
+                margin-right: 0.35rem;
+              "
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
             Participant Information
             <span class="optional-note">(Optional)</span>
           </h3>
-          <p class="text-secondary text-sm" style="margin-bottom: 1.25rem;">Your identity remains confidential. These fields help us analyse results by department.</p>
+          <p class="text-secondary text-sm" style="margin-bottom: 1.25rem">
+            Your identity remains confidential. These fields help us analyse
+            results by department.
+          </p>
           <div class="participant-grid">
             <div class="form-group">
               <label class="form-label">Full Name</label>
-              <input type="text" class="form-control" v-model="participant.name" placeholder="e.g. John Adeyemi" />
+              <input
+                type="text"
+                class="form-control"
+                v-model="participant.name"
+                placeholder="e.g. John Adeyemi"
+              />
             </div>
             <div class="form-group">
               <label class="form-label">Department / Unit</label>
-              <input type="text" class="form-control" v-model="participant.department" placeholder="e.g. Operations" />
+              <input
+                type="text"
+                class="form-control"
+                v-model="participant.department"
+                placeholder="e.g. Operations"
+              />
             </div>
             <div class="form-group">
               <label class="form-label">Job Title</label>
-              <input type="text" class="form-control" v-model="participant.jobTitle" placeholder="e.g. Senior Manager" />
+              <input
+                type="text"
+                class="form-control"
+                v-model="participant.jobTitle"
+                placeholder="e.g. Senior Manager"
+              />
             </div>
             <div class="form-group">
               <label class="form-label">Branch / Location</label>
-              <input type="text" class="form-control" v-model="participant.branch" placeholder="e.g. Lagos Island" />
+              <input
+                type="text"
+                class="form-control"
+                v-model="participant.branch"
+                placeholder="e.g. Lagos Island"
+              />
             </div>
             <div class="form-group">
               <label class="form-label">Years of Service</label>
@@ -111,13 +252,36 @@
         </div>
 
         <!-- ───────── Rating Scale Questions (Tabular Matrix) ───────── -->
-        <div v-if="ratingQuestions.length > 0" class="card rating-matrix-section" style="margin-bottom: 1.5rem;">
+        <div
+          v-if="ratingQuestions.length > 0"
+          class="card rating-matrix-section"
+          style="margin-bottom: 1.5rem"
+        >
           <h3 class="section-heading">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:0.35rem"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="
+                display: inline;
+                vertical-align: middle;
+                margin-right: 0.35rem;
+              "
+            >
+              <polygon
+                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+              />
+            </svg>
             Rating Assessment
           </h3>
-          <p class="text-secondary text-sm" style="margin-bottom: 0.5rem;">
-            Please rate each of the following on a scale of <strong>1 to 5</strong> where:
+          <p class="text-secondary text-sm" style="margin-bottom: 0.5rem">
+            Please rate each of the following on a scale of
+            <strong>1 to 5</strong> where:
           </p>
           <div class="rating-legend">
             <span class="legend-item"><strong>1</strong> = Very Poor</span>
@@ -130,19 +294,31 @@
             <span class="legend-sep">·</span>
             <span class="legend-item"><strong>5</strong> = Excellent</span>
             <span class="legend-sep">·</span>
-            <span class="legend-item text-muted"><strong>N/A</strong> = Not Applicable</span>
+            <span class="legend-item text-muted"
+              ><strong>N/A</strong> = Not Applicable</span
+            >
           </div>
 
-          <div class="rating-table-wrap" style="margin-top: 1.25rem;">
+          <div class="rating-table-wrap" style="margin-top: 1.25rem">
             <table class="rating-table">
               <thead>
                 <tr>
                   <th>Criteria</th>
-                  <th class="score-col-header">1<br/><span class="score-label">Very Poor</span></th>
-                  <th class="score-col-header">2<br/><span class="score-label">Poor</span></th>
-                  <th class="score-col-header">3<br/><span class="score-label">Average</span></th>
-                  <th class="score-col-header">4<br/><span class="score-label">Good</span></th>
-                  <th class="score-col-header">5<br/><span class="score-label">Excellent</span></th>
+                  <th class="score-col-header">
+                    1<br /><span class="score-label">Very Poor</span>
+                  </th>
+                  <th class="score-col-header">
+                    2<br /><span class="score-label">Poor</span>
+                  </th>
+                  <th class="score-col-header">
+                    3<br /><span class="score-label">Average</span>
+                  </th>
+                  <th class="score-col-header">
+                    4<br /><span class="score-label">Good</span>
+                  </th>
+                  <th class="score-col-header">
+                    5<br /><span class="score-label">Excellent</span>
+                  </th>
                   <th class="na-col-header">N/A</th>
                 </tr>
               </thead>
@@ -184,27 +360,58 @@
         </div>
 
         <!-- ───────── Multiple Choice / Checkbox Questions ───────── -->
-        <div v-for="q in choiceQuestions" :key="q.name" class="card question-card" style="margin-bottom: 1rem;">
+        <div
+          v-for="q in choiceQuestions"
+          :key="q.name"
+          class="card question-card"
+          style="margin-bottom: 1rem"
+        >
           <div class="question-title">
             {{ q.question_text }}
             <span v-if="q.required" class="mandatory-star">*</span>
           </div>
           <div class="choices-list">
             <!-- Multiple Choice (radio) -->
-            <label v-if="q.question_type === 'Multiple Choice'" v-for="opt in (q.options || [])" :key="opt" class="choice-item">
-              <input type="radio" :name="'q-' + q.name" :value="opt" v-model="responses[q.name]" class="choice-radio" />
+            <label
+              v-if="q.question_type === 'Multiple Choice'"
+              v-for="opt in q.options || []"
+              :key="opt"
+              class="choice-item"
+            >
+              <input
+                type="radio"
+                :name="'q-' + q.name"
+                :value="opt"
+                v-model="responses[q.name]"
+                class="choice-radio"
+              />
               <span class="choice-label">{{ opt }}</span>
             </label>
             <!-- Checkbox -->
-            <label v-if="q.question_type === 'Checkbox'" v-for="opt in (q.options || [])" :key="opt" class="choice-item">
-              <input type="checkbox" :value="opt" v-model="checkboxResponses[q.name]" class="choice-check" />
+            <label
+              v-if="q.question_type === 'Checkbox'"
+              v-for="opt in q.options || []"
+              :key="opt"
+              class="choice-item"
+            >
+              <input
+                type="checkbox"
+                :value="opt"
+                v-model="checkboxResponses[q.name]"
+                class="choice-check"
+              />
               <span class="choice-label">{{ opt }}</span>
             </label>
           </div>
         </div>
 
         <!-- ───────── Text Input Questions ───────── -->
-        <div v-for="q in textQuestions" :key="q.name" class="card question-card" style="margin-bottom: 1rem;">
+        <div
+          v-for="q in textQuestions"
+          :key="q.name"
+          class="card question-card"
+          style="margin-bottom: 1rem"
+        >
           <div class="question-title">
             {{ q.question_text }}
             <span v-if="q.required" class="mandatory-star">*</span>
@@ -218,9 +425,27 @@
         </div>
 
         <!-- ───────── Additional Comments ───────── -->
-        <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card" style="margin-bottom: 1.5rem">
           <h3 class="section-heading">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:0.35rem"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="
+                display: inline;
+                vertical-align: middle;
+                margin-right: 0.35rem;
+              "
+            >
+              <path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              />
+            </svg>
             Additional Comments
             <span class="optional-note">(Optional)</span>
           </h3>
@@ -233,12 +458,20 @@
         </div>
 
         <!-- Submit -->
-        <div class="submit-section card-glass" style="padding: 1.5rem; border-radius: var(--r-lg);">
+        <div
+          class="submit-section card-glass"
+          style="padding: 1.5rem; border-radius: var(--r-lg)"
+        >
           <div class="submit-row">
             <div class="submit-info">
               <span class="text-sm text-secondary">
-                <span v-if="missingRequired.length === 0" class="text-success">✓ All required questions answered</span>
-                <span v-else class="text-warning">⚠ {{ missingRequired.length }} required question(s) still unanswered</span>
+                <span v-if="missingRequired.length === 0" class="text-success"
+                  >✓ All required questions answered</span
+                >
+                <span v-else class="text-warning"
+                  >⚠ {{ missingRequired.length }} required question(s) still
+                  unanswered</span
+                >
               </span>
             </div>
             <button
@@ -247,17 +480,30 @@
               :disabled="submitting || missingRequired.length > 0"
             >
               <span v-if="submitting">
-                <div class="spinner spinner-sm" style="display: inline-block;"></div>
+                <div
+                  class="spinner spinner-sm"
+                  style="display: inline-block"
+                ></div>
                 Submitting…
               </span>
               <span v-else>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
                 Submit Response
               </span>
             </button>
           </div>
         </div>
-
       </form>
     </div>
   </div>
@@ -268,50 +514,49 @@ import { ref, reactive, computed, onMounted, watch, inject } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "../stores/auth.js";
 import { frappeCall } from "../api/frappe.js";
+import DOMPurify from "dompurify";
 
 const route = useRoute();
-const auth  = useAuthStore();
+const auth = useAuthStore();
 const toast = inject("toast");
 
-const loading   = ref(true);
+const loading = ref(true);
 const submitting = ref(false);
-const submitted  = ref(false);
-const error      = ref(null);
-const survey     = ref(null);
+const submitted = ref(false);
+const error = ref(null);
+const survey = ref(null);
 
-const displayLogo = computed(() =>
-  survey.value?.company_logo || auth.companyLogo || window.pollcast_company_logo || null
+const displayLogo = computed(
+  () =>
+    survey.value?.company_logo ||
+    auth.companyLogo ||
+    window.pollcast_company_logo ||
+    null,
 );
 
 const displayCompanyName = computed(() =>
-  survey.value?.company_name || auth.companyName || window.pollcast_company_name || ""
+  survey.value &&
+  Object.prototype.hasOwnProperty.call(survey.value, "company_name")
+    ? survey.value.company_name || ""
+    : auth.companyName || window.pollcast_company_name || "",
 );
 
-const plainDescription = computed(() => {
-  const desc = survey.value?.description || "";
-  if (!desc) return "";
-  if (!/<[a-z][\s\S]*>/i.test(desc)) return desc;
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(desc, "text/html");
-    doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
-    doc.querySelectorAll("p, div, li, tr").forEach((el) => {
-      el.after("\n");
-    });
-    return (doc.body.textContent || doc.body.innerText || "").trim();
-  } catch {
-    return desc.replace(/<[^>]+>/g, "").trim();
-  }
-});
+const sanitizedDescription = computed(() =>
+  DOMPurify.sanitize(survey.value?.description || ""),
+);
 
 // Responses: { [question_name]: value }
-const responses         = reactive({});
+const responses = reactive({});
 // Checkbox multi-value responses: { [question_name]: [] }
 const checkboxResponses = reactive({});
 const additionalComments = ref("");
 
 const participant = reactive({
-  name: "", department: "", jobTitle: "", branch: "", yearsOfService: "",
+  name: "",
+  department: "",
+  jobTitle: "",
+  branch: "",
+  yearsOfService: "",
 });
 
 const loadSurvey = async () => {
@@ -370,37 +615,62 @@ watch(
     if (newName && newName !== oldName) {
       loadSurvey();
     }
-  }
+  },
 );
 
 // Question type groups
-const ratingQuestions  = computed(() => (survey.value?.questions || []).filter(q => q.question_type === "Rating Scale"));
-const choiceQuestions  = computed(() => (survey.value?.questions || []).filter(q => q.question_type === "Multiple Choice" || q.question_type === "Checkbox"));
-const textQuestions    = computed(() => (survey.value?.questions || []).filter(q => q.question_type === "Text Input"));
+const ratingQuestions = computed(() =>
+  (survey.value?.questions || []).filter(
+    (q) => q.question_type === "Rating Scale",
+  ),
+);
+const choiceQuestions = computed(() =>
+  (survey.value?.questions || []).filter(
+    (q) =>
+      q.question_type === "Multiple Choice" || q.question_type === "Checkbox",
+  ),
+);
+const textQuestions = computed(() =>
+  (survey.value?.questions || []).filter(
+    (q) => q.question_type === "Text Input",
+  ),
+);
 
-const totalRequired  = computed(() => (survey.value?.questions || []).filter(q => q.required).length);
-const answeredCount  = computed(() => {
-  return (survey.value?.questions || []).filter(q => {
+const totalRequired = computed(
+  () => (survey.value?.questions || []).filter((q) => q.required).length,
+);
+const answeredCount = computed(() => {
+  return (survey.value?.questions || []).filter((q) => {
     if (!q.required) return false;
-    if (q.question_type === "Checkbox") return (checkboxResponses[q.name] || []).length > 0;
+    if (q.question_type === "Checkbox")
+      return (checkboxResponses[q.name] || []).length > 0;
     return responses[q.name] && responses[q.name].trim();
   }).length;
 });
 
 const progressPct = computed(() =>
-  totalRequired.value === 0 ? 100 : Math.round((answeredCount.value / totalRequired.value) * 100)
+  totalRequired.value === 0
+    ? 100
+    : Math.round((answeredCount.value / totalRequired.value) * 100),
 );
 
 const missingRequired = computed(() =>
-  (survey.value?.questions || []).filter(q => {
+  (survey.value?.questions || []).filter((q) => {
     if (!q.required) return false;
-    if (q.question_type === "Checkbox") return (checkboxResponses[q.name] || []).length === 0;
+    if (q.question_type === "Checkbox")
+      return (checkboxResponses[q.name] || []).length === 0;
     return !responses[q.name] || !responses[q.name].trim();
-  })
+  }),
 );
 
 const getRatingColor = (score) => {
-  const colors = { 1: "#EF4444", 2: "#F97316", 3: "#F59E0B", 4: "#84CC16", 5: "#22C55E" };
+  const colors = {
+    1: "#EF4444",
+    2: "#F97316",
+    3: "#F59E0B",
+    4: "#84CC16",
+    5: "#22C55E",
+  };
   return colors[score] || "var(--accent)";
 };
 
@@ -425,9 +695,9 @@ const submitSurvey = async () => {
     }
 
     const result = await frappeCall("pollcast.api.submit_survey_response", {
-      survey_name:      survey.value.name,
-      responses:        JSON.stringify(allResponses),
-      respondent_info:  JSON.stringify(participant),
+      survey_name: survey.value.name,
+      responses: JSON.stringify(allResponses),
+      respondent_info: JSON.stringify(participant),
     });
 
     if (result?.success !== false) {
@@ -445,7 +715,10 @@ const submitSurvey = async () => {
 </script>
 
 <style scoped>
-.survey-take { display: flex; flex-direction: column; }
+.survey-take {
+  display: flex;
+  flex-direction: column;
+}
 
 /* Sections */
 .section-heading {
@@ -457,11 +730,22 @@ const submitSurvey = async () => {
   align-items: center;
   gap: 0.4rem;
 }
-.optional-note { font-size: 0.75rem; font-weight: 400; color: var(--text-muted); font-style: italic; margin-left: 0.35rem; }
+.optional-note {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 0.35rem;
+}
 
 /* Participant info grid */
-.participant-info-section { }
-.participant-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
+.participant-info-section {
+}
+.participant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
 
 /* Rating legend */
 .rating-legend {
@@ -476,9 +760,15 @@ const submitSurvey = async () => {
   font-size: 0.8125rem;
   margin-top: 0.75rem;
 }
-.legend-item { color: var(--text-secondary); }
-.legend-item strong { color: var(--text-primary); }
-.legend-sep { color: var(--text-muted); }
+.legend-item {
+  color: var(--text-secondary);
+}
+.legend-item strong {
+  color: var(--text-primary);
+}
+.legend-sep {
+  color: var(--text-muted);
+}
 
 /* Score column label */
 .score-label {
@@ -492,17 +782,20 @@ const submitSurvey = async () => {
 }
 
 /* Rating radio — color-coded by score */
-.rating-radio { accent-color: var(--accent); }
+.rating-radio {
+  accent-color: var(--accent);
+}
 
 /* N/A radio */
 .rating-radio-na:checked {
   border-color: var(--text-muted);
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   box-shadow: none;
 }
 
 /* Question cards */
-.question-card { }
+.question-card {
+}
 .question-title {
   font-size: 1rem;
   font-weight: 600;
@@ -511,7 +804,11 @@ const submitSurvey = async () => {
   line-height: 1.5;
 }
 
-.choices-list { display: flex; flex-direction: column; gap: 0.625rem; }
+.choices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
 .choice-item {
   display: flex;
   align-items: center;
@@ -536,22 +833,43 @@ const submitSurvey = async () => {
   flex-shrink: 0;
 }
 
-.choice-label { font-size: 0.9rem; color: var(--text-primary); cursor: pointer; }
+.choice-label {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
 
 /* Submit section */
-.submit-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.submit-info { flex: 1; }
+.submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.submit-info {
+  flex: 1;
+}
 
 /* Progress bar */
-.progress-bar-wrap {}
+.progress-bar-wrap {
+}
 
 /* Error state */
-.error-state p { margin-bottom: 1rem; }
+.error-state p {
+  margin-bottom: 1rem;
+}
 
 @media (max-width: 768px) {
-  .submit-row { flex-direction: column; }
-  .submit-row .btn { width: 100%; }
-  .rating-legend { gap: 0.4rem; }
+  .submit-row {
+    flex-direction: column;
+  }
+  .submit-row .btn {
+    width: 100%;
+  }
+  .rating-legend {
+    gap: 0.4rem;
+  }
 }
 
 /* Company Logo Branding Header */

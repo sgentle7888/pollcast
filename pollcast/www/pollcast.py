@@ -26,7 +26,7 @@ def get_context(context):
     context.company_logo = logo or ''
 
     company_name = frappe.db.get_default('pollcast_company_name')
-    if not company_name:
+    if company_name is None:
         company_name = (
             frappe.db.get_single_value('Website Settings', 'app_name') or
             frappe.db.get_value('System Settings', None, 'app_name') or

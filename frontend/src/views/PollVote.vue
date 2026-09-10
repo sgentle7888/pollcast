@@ -1,39 +1,74 @@
 <template>
   <div class="poll-vote-view animate-fade-in-up">
-
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
-      <div class="spinner"></div><p>Loading poll…</p>
+      <div class="spinner"></div>
+      <p>Loading poll…</p>
     </div>
 
     <!-- Error -->
-    <div v-else-if="error" class="error-state card" style="text-align: center; padding: 3rem;">
-      <p class="text-danger" style="font-size: 1.25rem; margin-bottom: 1rem;">⚠️ {{ error }}</p>
-      <RouterLink to="/polls" class="btn btn-secondary">← Back to Polls</RouterLink>
+    <div
+      v-else-if="error"
+      class="error-state card"
+      style="text-align: center; padding: 3rem"
+    >
+      <p class="text-danger" style="font-size: 1.25rem; margin-bottom: 1rem">
+        ⚠️ {{ error }}
+      </p>
+      <RouterLink to="/polls" class="btn btn-secondary"
+        >← Back to Polls</RouterLink
+      >
     </div>
 
     <!-- Voting Card -->
-    <div v-else-if="poll" class="card poll-vote-card" style="max-width: 600px; margin: 0 auto;">
-
+    <div
+      v-else-if="poll"
+      class="card poll-vote-card"
+      style="max-width: 600px; margin: 0 auto"
+    >
       <!-- Centered Company Branding Header -->
       <div v-if="displayLogo || displayCompanyName" class="poll-brand-header">
-        <img v-if="displayLogo" :src="displayLogo" alt="Company Logo" class="poll-brand-logo" />
-        <div v-if="displayCompanyName" class="poll-brand-name">{{ displayCompanyName }}</div>
+        <img
+          v-if="displayLogo"
+          :src="displayLogo"
+          alt="Company Logo"
+          class="poll-brand-logo"
+        />
+        <div v-if="displayCompanyName" class="poll-brand-name">
+          {{ displayCompanyName }}
+        </div>
       </div>
 
       <!-- Header -->
-      <div class="poll-header-block" style="margin-bottom: 1.5rem;">
-        <span class="badge badge-active" style="margin-bottom: 0.5rem;">Active Poll</span>
-        <h2 style="font-size: 1.35rem; line-height: 1.3;">{{ poll.title }}</h2>
-        <p v-if="plainDescription" class="text-secondary text-sm poll-desc-text">{{ plainDescription }}</p>
+      <div class="poll-header-block" style="margin-bottom: 1.5rem">
+        <span class="badge badge-active" style="margin-bottom: 0.5rem"
+          >Active Poll</span
+        >
+        <h2 style="font-size: 1.35rem; line-height: 1.3">{{ poll.title }}</h2>
+        <div
+          v-if="sanitizedDescription"
+          class="text-secondary text-sm poll-desc-text rich-description"
+          v-html="sanitizedDescription"
+        ></div>
       </div>
 
       <form @submit.prevent="submitVote">
-        <div class="options-list" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+        <div
+          class="options-list"
+          style="
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+          "
+        >
           <label
             v-for="opt in poll.questions"
             :key="opt.name"
-            :class="['poll-option-item', { active: selectedOption === opt.name }]"
+            :class="[
+              'poll-option-item',
+              { active: selectedOption === opt.name },
+            ]"
           >
             <input
               type="radio"
@@ -47,16 +82,32 @@
           </label>
         </div>
 
-        <div class="actions-row" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+        <div
+          class="actions-row"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+          "
+        >
           <RouterLink to="/polls" class="btn btn-secondary">Cancel</RouterLink>
-          <div style="display: flex; gap: 0.5rem;">
-            <RouterLink :to="'/polls/' + poll.name + '/results'" class="btn btn-ghost">View Results</RouterLink>
+          <div style="display: flex; gap: 0.5rem">
+            <RouterLink
+              :to="'/polls/' + poll.name + '/results'"
+              class="btn btn-ghost"
+              >View Results</RouterLink
+            >
             <button
               type="submit"
               class="btn btn-primary"
               :disabled="!selectedOption || voting"
             >
-              <span v-if="voting" class="spinner spinner-sm" style="margin-right: 0.5rem;"></span>
+              <span
+                v-if="voting"
+                class="spinner spinner-sm"
+                style="margin-right: 0.5rem"
+              ></span>
               Cast Vote
             </button>
           </div>
@@ -71,10 +122,11 @@ import { ref, computed, onMounted, watch, inject } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth.js";
 import { frappeCall } from "../api/frappe.js";
+import DOMPurify from "dompurify";
 
 const route = useRoute();
 const router = useRouter();
-const auth  = useAuthStore();
+const auth = useAuthStore();
 const toast = inject("toast");
 
 const loading = ref(true);
@@ -83,30 +135,23 @@ const error = ref(null);
 const poll = ref(null);
 const selectedOption = ref("");
 
-const displayLogo = computed(() =>
-  poll.value?.company_logo || auth.companyLogo || window.pollcast_company_logo || null
+const displayLogo = computed(
+  () =>
+    poll.value?.company_logo ||
+    auth.companyLogo ||
+    window.pollcast_company_logo ||
+    null,
 );
 
 const displayCompanyName = computed(() =>
-  poll.value?.company_name || auth.companyName || window.pollcast_company_name || ""
+  poll.value && Object.prototype.hasOwnProperty.call(poll.value, "company_name")
+    ? poll.value.company_name || ""
+    : auth.companyName || window.pollcast_company_name || "",
 );
 
-const plainDescription = computed(() => {
-  const desc = poll.value?.description || "";
-  if (!desc) return "";
-  if (!/<[a-z][\s\S]*>/i.test(desc)) return desc;
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(desc, "text/html");
-    doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
-    doc.querySelectorAll("p, div, li, tr").forEach((el) => {
-      el.after("\n");
-    });
-    return (doc.body.textContent || doc.body.innerText || "").trim();
-  } catch {
-    return desc.replace(/<[^>]+>/g, "").trim();
-  }
-});
+const sanitizedDescription = computed(() =>
+  DOMPurify.sanitize(poll.value?.description || ""),
+);
 
 const loadPoll = async () => {
   const name = route.params.name;
@@ -146,7 +191,7 @@ watch(
     if (newName && newName !== oldName) {
       loadPoll();
     }
-  }
+  },
 );
 
 const submitVote = async () => {
@@ -173,7 +218,9 @@ const submitVote = async () => {
 </script>
 
 <style scoped>
-.poll-vote-view { padding: 2rem 0; }
+.poll-vote-view {
+  padding: 2rem 0;
+}
 
 .poll-option-item {
   display: flex;

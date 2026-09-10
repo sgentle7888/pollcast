@@ -32,8 +32,14 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       const res = await frappeCall("pollcast.api.get_company_logo");
       if (res) {
-        if (res.logo !== undefined) companyLogo.value = res.logo || "";
-        if (res.company_name !== undefined) companyName.value = res.company_name || "";
+        if (res.logo !== undefined) {
+          companyLogo.value = res.logo || "";
+          window.pollcast_company_logo = res.logo || "";
+        }
+        if (res.company_name !== undefined) {
+          companyName.value = res.company_name || "";
+          window.pollcast_company_name = res.company_name || "";
+        }
       }
     } catch (e) {
       console.warn("fetchCompanyLogo error:", e.message);
@@ -42,11 +48,18 @@ export const useAuthStore = defineStore("auth", () => {
 
   function setCompanyLogo(url) {
     companyLogo.value = url || "";
+    window.pollcast_company_logo = url || "";
   }
 
   function setCompanyBranding(logo, name) {
-    if (logo !== undefined) companyLogo.value = logo || "";
-    if (name !== undefined) companyName.value = name || "";
+    if (logo !== undefined) {
+      companyLogo.value = logo || "";
+      window.pollcast_company_logo = logo || "";
+    }
+    if (name !== undefined) {
+      companyName.value = name || "";
+      window.pollcast_company_name = name || "";
+    }
   }
 
   async function init() {

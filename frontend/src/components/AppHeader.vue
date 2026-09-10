@@ -105,10 +105,10 @@ import { useAuthStore } from "../stores/auth.js";
 const auth = useAuthStore();
 const menuOpen = ref(false);
 
-const theme = ref("dark");
+const theme = ref("light");
 
 onMounted(() => {
-  theme.value = document.documentElement.getAttribute("data-theme") || "dark";
+  theme.value = document.documentElement.getAttribute("data-theme") || "light";
 });
 
 const toggleTheme = () => {

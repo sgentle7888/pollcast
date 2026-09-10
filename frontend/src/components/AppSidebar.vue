@@ -141,7 +141,7 @@ const openBrandingModal = () => {
 
 
 const isCollapsed = ref(false);
-const isDark = ref(true);
+const isDark = ref(false);
 
 const mobileOpen = computed(() => props.modelValue);
 
@@ -192,7 +192,7 @@ const toggleTheme = () => {
 };
 
 onMounted(() => {
-  isDark.value = (document.documentElement.getAttribute("data-theme") || "dark") === "dark";
+  isDark.value = (document.documentElement.getAttribute("data-theme") || "light") === "dark";
   const saved = localStorage.getItem("sidebar-collapsed");
   if (saved === "1") {
     isCollapsed.value = true;
