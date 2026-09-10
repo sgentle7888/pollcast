@@ -365,9 +365,21 @@
           </div>
           <div
             v-for="(opt, i) in form.options"
-            :key="i"
+            :key="opt.name || 'new-option-' + i"
             class="option-row-build"
+            draggable="true"
+            @dragstart="startDrag('options', i, $event)"
+            @dragover.prevent
+            @drop="dropDrag('options', i, $event)"
+            @dragend="endDrag"
           >
+            <div
+              class="drag-handle"
+              title="Drag to reorder"
+              aria-label="Drag to reorder"
+            >
+              ⋮⋮
+            </div>
             <div class="opt-num">{{ i + 1 }}</div>
             <input
               type="text"
@@ -429,10 +441,22 @@
         <div v-else class="questions-builder">
           <div
             v-for="(q, qi) in form.questions"
-            :key="qi"
+            :key="q.name || 'new-question-' + qi"
             class="question-card card-elevated"
+            draggable="true"
+            @dragstart="startDrag('questions', qi, $event)"
+            @dragover.prevent
+            @drop="dropDrag('questions', qi, $event)"
+            @dragend="endDrag"
           >
             <div class="q-header">
+              <div
+                class="drag-handle"
+                title="Drag to reorder"
+                aria-label="Drag to reorder"
+              >
+                ⋮⋮
+              </div>
               <span class="q-num">Q{{ qi + 1 }}</span>
               <select
                 class="form-control q-type-select"
@@ -1064,6 +1088,24 @@ const selectType = (t) => {
 const addOption = () => form.value.options.push({ text: "" });
 const removeOption = (i) => form.value.options.splice(i, 1);
 
+const dragState = ref({ list: null, index: null });
+const startDrag = (list, index, event) => {
+  dragState.value = { list, index };
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", String(index));
+};
+const dropDrag = (list, targetIndex, event) => {
+  event.preventDefault();
+  if (dragState.value.list !== list || dragState.value.index === null) return;
+  const items = form.value[list];
+  const [moved] = items.splice(dragState.value.index, 1);
+  items.splice(targetIndex, 0, moved);
+  endDrag();
+};
+const endDrag = () => {
+  dragState.value = { list: null, index: null };
+};
+
 const addQuestion = () =>
   form.value.questions.push({
     text: "",
@@ -1185,6 +1227,31 @@ const submit = async () => {
 .create-view {
   display: flex;
   flex-direction: column;
+}
+
+.drag-handle {
+  flex: 0 0 auto;
+  cursor: grab;
+  color: var(--text-muted, #9ca3af);
+  font-size: 1rem;
+  letter-spacing: -0.2em;
+  user-select: none;
+  padding: 0 0.25rem;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.option-row-build[draggable="true"],
+.question-card[draggable="true"] {
+  cursor: grab;
+}
+
+.option-row-build[draggable="true"]:active,
+.question-card[draggable="true"]:active {
+  cursor: grabbing;
+  opacity: 0.65;
 }
 
 /* Type Selector */
