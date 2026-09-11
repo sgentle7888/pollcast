@@ -1,5 +1,9 @@
 <template>
-  <div v-if="visible" class="update-prompt-overlay" role="presentation">
+  <div
+    v-if="visible && !autoUpdate"
+    class="update-prompt-overlay"
+    role="presentation"
+  >
     <section
       class="update-prompt"
       role="dialog"
@@ -50,6 +54,13 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { applyAppUpdate, hasNewAppVersion } from "../utils/appVersion.js";
 
+const props = defineProps({
+  autoUpdate: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 const visible = ref(false);
 const updating = ref(false);
 let intervalId;
@@ -58,7 +69,13 @@ async function checkForUpdate() {
   if (visible.value || document.visibilityState !== "visible") return;
 
   try {
-    if (await hasNewAppVersion()) visible.value = true;
+    if (await hasNewAppVersion()) {
+      if (props.autoUpdate) {
+        await applyAppUpdate();
+      } else {
+        visible.value = true;
+      }
+    }
   } catch (error) {
     console.warn("Pollcast update check failed.", error);
   }

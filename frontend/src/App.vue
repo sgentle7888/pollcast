@@ -160,7 +160,7 @@
       @close="showSettingsModal = false"
     />
 
-    <AppUpdatePrompt />
+    <AppUpdatePrompt :auto-update="isGuestMode" />
   </div>
 </template>
 
