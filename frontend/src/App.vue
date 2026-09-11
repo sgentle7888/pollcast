@@ -15,16 +15,33 @@
     ></div>
 
     <!-- Main Layout -->
-    <div :class="['main-layout', { 'sidebar-collapsed': sidebarCollapsed, 'guest-mode': isGuestMode }]">
+    <div
+      :class="[
+        'main-layout',
+        { 'sidebar-collapsed': sidebarCollapsed, 'guest-mode': isGuestMode },
+      ]"
+    >
       <!-- Top Header Bar (hidden for guests on shared-link routes) -->
       <header v-if="!isGuestMode" class="top-bar">
         <div class="top-bar-inner">
           <!-- Mobile hamburger -->
-          <button class="hamburger-btn btn btn-ghost btn-icon" @click="mobileOpen = !mobileOpen">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12"/>
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <line x1="3" y1="18" x2="21" y2="18"/>
+          <button
+            class="hamburger-btn btn btn-ghost btn-icon"
+            @click="mobileOpen = !mobileOpen"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
 
@@ -40,13 +57,27 @@
               to="/create"
               class="btn btn-primary btn-sm"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
               Create
             </RouterLink>
 
-            <a v-if="!auth.isGuest" href="/login?action=Logout" class="btn btn-ghost btn-sm hide-mobile">
+            <a
+              v-if="!auth.isGuest"
+              href="/login?action=Logout"
+              class="btn btn-ghost btn-sm hide-mobile"
+            >
               Sign out
             </a>
           </div>
@@ -73,14 +104,49 @@
           @click="removeToast(toast.id)"
         >
           <span class="toast-icon">
-            <svg v-if="toast.type === 'success'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            <svg
+              v-if="toast.type === 'success'"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
-            <svg v-else-if="toast.type === 'error'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+            <svg
+              v-else-if="toast.type === 'error'"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
             </svg>
-            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            <svg
+              v-else
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
           </span>
           <span>{{ toast.message }}</span>
@@ -93,6 +159,8 @@
       v-if="showSettingsModal"
       @close="showSettingsModal = false"
     />
+
+    <AppUpdatePrompt />
   </div>
 </template>
 
@@ -102,6 +170,7 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "./stores/auth.js";
 import AppSidebar from "./components/AppSidebar.vue";
 import AppSettingsModal from "./components/AppSettingsModal.vue";
+import AppUpdatePrompt from "./components/AppUpdatePrompt.vue";
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -117,16 +186,15 @@ const openSettingsModal = () => {
 };
 provide("openSettingsModal", openSettingsModal);
 
-
-const onCollapse = (val) => { sidebarCollapsed.value = val; };
+const onCollapse = (val) => {
+  sidebarCollapsed.value = val;
+};
 
 const pageTitle = computed(() => route.meta?.title || "Pollcast");
 
 // Guest mode: guest user on an explicitly guest-allowed route
 // → strip sidebar, header, and nav so only the voting/survey form is shown
-const isGuestMode = computed(() =>
-  auth.isGuest && !!route.meta?.allowGuest
-);
+const isGuestMode = computed(() => auth.isGuest && !!route.meta?.allowGuest);
 
 // Toast system
 const toasts = ref([]);
@@ -160,13 +228,12 @@ provide("toast", addToast);
   width: 100% !important;
 }
 
-
 /* Top Header Bar */
 .top-bar {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(10,22,40,0.85);
+  background: rgba(10, 22, 40, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--glass-border);
@@ -174,7 +241,7 @@ provide("toast", addToast);
 }
 
 :root[data-theme="light"] .top-bar {
-  background: rgba(255,255,255,0.85);
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .top-bar-inner {
@@ -215,7 +282,9 @@ provide("toast", addToast);
 /* Page transition */
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+  transition:
+    opacity 0.2s var(--ease),
+    transform 0.2s var(--ease);
 }
 .page-enter-from {
   opacity: 0;
@@ -228,9 +297,17 @@ provide("toast", addToast);
 
 /* Toast transitions */
 .toast-enter-active,
-.toast-leave-active { transition: all 0.3s var(--ease); }
-.toast-enter-from { opacity: 0; transform: translateX(20px); }
-.toast-leave-to  { opacity: 0; transform: translateX(20px); }
+.toast-leave-active {
+  transition: all 0.3s var(--ease);
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
 
 .toast-icon {
   display: flex;
@@ -238,11 +315,19 @@ provide("toast", addToast);
   color: var(--text-accent);
 }
 
-.toast.success .toast-icon { color: var(--success); }
-.toast.error   .toast-icon { color: var(--danger); }
+.toast.success .toast-icon {
+  color: var(--success);
+}
+.toast.error .toast-icon {
+  color: var(--danger);
+}
 
 @media (max-width: 768px) {
-  .hamburger-btn { display: flex; }
-  .hide-mobile   { display: none; }
+  .hamburger-btn {
+    display: flex;
+  }
+  .hide-mobile {
+    display: none;
+  }
 }
 </style>
