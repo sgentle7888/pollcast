@@ -15,6 +15,18 @@ from collections import defaultdict
 
 
 @frappe.whitelist(allow_guest=True)
+def get_app_version():
+    """Return the current frontend build version for browser cache checks."""
+    try:
+        index_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'index.js')
+        version = str(os.stat(index_path).st_mtime_ns)
+    except (FileNotFoundError, OSError):
+        version = 'unknown'
+
+    return {'version': version}
+
+
+@frappe.whitelist(allow_guest=True)
 def get_user_info():
     """Get basic info + roles for the logged-in user, used by the portal auth store.
     Returns safe guest defaults when called by an unauthenticated user.

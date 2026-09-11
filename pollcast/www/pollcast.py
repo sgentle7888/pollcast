@@ -36,7 +36,7 @@ def get_context(context):
 
     try:
         idx_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'index.js')
-        context.asset_version = str(int(os.path.getmtime(idx_path)))
+        context.asset_version = str(os.stat(idx_path).st_mtime_ns)
     except Exception:
         context.asset_version = str(int(frappe.utils.now_datetime().timestamp()))
 
