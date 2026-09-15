@@ -316,6 +316,17 @@
               </button>
             </div>
           </div>
+
+          <div
+            v-if="type === 'survey'"
+            class="form-group"
+            style="grid-column: span 2"
+          >
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.collectParticipantInfo" />
+              <span>Show Participant Information fields to respondents</span>
+            </label>
+          </div>
         </div>
 
         <div class="wizard-nav">
@@ -956,6 +967,7 @@ const createAnother = () => {
     status: "Draft",
     startDate: "",
     endDate: "",
+    collectParticipantInfo: false,
     options: [{ text: "" }, { text: "" }],
     questions: [
       { text: "", type: "Rating Scale", required: true, options: ["", ""] },
@@ -976,6 +988,7 @@ const form = ref({
   status: "Draft",
   startDate: "",
   endDate: "",
+  collectParticipantInfo: false,
   options: [{ text: "" }, { text: "" }],
   questions: [
     { text: "", type: "Rating Scale", required: true, options: ["", ""] },
@@ -1000,6 +1013,7 @@ const loadSurveyForEdit = async (name) => {
       form.value.status = res.status || "Draft";
       form.value.startDate = toDatetimeLocal(res.start_date);
       form.value.endDate = toDatetimeLocal(res.end_date);
+      form.value.collectParticipantInfo = !!res.collect_participant_info;
 
       if (res.questions && res.questions.length > 0) {
         form.value.questions = res.questions.map((q) => ({
@@ -1159,6 +1173,7 @@ const submit = async () => {
           status: form.value.status,
           start_date: form.value.startDate || null,
           end_date: form.value.endDate || null,
+          collect_participant_info: form.value.collectParticipantInfo ? 1 : 0,
           questions: form.value.questions
             .filter((q) => q.text.trim())
             .map((q) => ({
@@ -1199,6 +1214,7 @@ const submit = async () => {
         description: form.value.description,
         start_date: form.value.startDate || null,
         end_date: form.value.endDate || null,
+        collect_participant_info: form.value.collectParticipantInfo ? 1 : 0,
         questions: form.value.questions
           .filter((q) => q.text.trim())
           .map((q) => ({

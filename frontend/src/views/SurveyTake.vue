@@ -171,6 +171,7 @@
       <form @submit.prevent="submitSurvey">
         <!-- ───────── Participant Information ───────── -->
         <div
+          v-if="survey.collect_participant_info"
           class="card participant-info-section"
           style="margin-bottom: 1.5rem"
         >
@@ -798,7 +799,9 @@ const submitSurvey = async () => {
     const result = await frappeCall("pollcast.api.submit_survey_response", {
       survey_name: survey.value.name,
       responses: JSON.stringify(allResponses),
-      respondent_info: JSON.stringify(participant),
+      respondent_info: survey.value.collect_participant_info
+        ? JSON.stringify(participant)
+        : JSON.stringify({}),
     });
 
     if (result?.success !== false) {

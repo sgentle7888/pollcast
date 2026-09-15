@@ -311,6 +311,7 @@ def get_survey(survey_name):
             'description': survey.description,
             'status': survey.status,
             'multi_page': survey.multi_page,
+            'collect_participant_info': survey.collect_participant_info,
             'start_date': str(survey.start_date) if survey.start_date else None,
             'end_date': str(survey.end_date) if survey.end_date else None,
             'total_responses': survey.total_responses,
@@ -1301,7 +1302,7 @@ def create_poll(title, description=None, start_date=None, end_date=None, options
 
 
 @frappe.whitelist()
-def create_survey(title, description=None, start_date=None, end_date=None, questions=None):
+def create_survey(title, description=None, start_date=None, end_date=None, questions=None, collect_participant_info=0):
     try:
         if isinstance(questions, str):
             questions = json.loads(questions)
@@ -1331,6 +1332,7 @@ def create_survey(title, description=None, start_date=None, end_date=None, quest
             'status': 'Draft',
             'start_date': start_date,
             'end_date': end_date,
+            'collect_participant_info': 1 if str(collect_participant_info).lower() in ('1', 'true') else 0,
             'questions': survey_questions
         })
         survey.insert()
@@ -1547,7 +1549,7 @@ def delete_survey(survey_name):
 
 
 @frappe.whitelist()
-def update_survey(survey_name, title, description=None, start_date=None, end_date=None, questions=None, status=None):
+def update_survey(survey_name, title, description=None, start_date=None, end_date=None, questions=None, status=None, collect_participant_info=0):
     """
     Update an existing Survey document and its questions.
     Accessible by System Manager, Poll Manager, and Project Manager.
@@ -1581,6 +1583,7 @@ def update_survey(survey_name, title, description=None, start_date=None, end_dat
             survey.description = description
         survey.start_date = start_date if start_date and start_date != 'null' else None
         survey.end_date = end_date if end_date and end_date != 'null' else None
+        survey.collect_participant_info = 1 if str(collect_participant_info).lower() in ('1', 'true') else 0
 
         if status and status in ['Draft', 'Active', 'Closed', 'Archived']:
             survey.status = status
