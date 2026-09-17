@@ -312,7 +312,11 @@ def get_survey(survey_name):
         return {
             'name': survey.name,
             'title': survey.title,
+            'title_color': getattr(survey, 'title_color', None) or '',
             'description': survey.description,
+            'section_text_color': getattr(survey, 'section_text_color', None) or '',
+            'field_label_color': getattr(survey, 'field_label_color', None) or '',
+            'field_content_color': getattr(survey, 'field_content_color', None) or '',
             'status': survey.status,
             'multi_page': survey.multi_page,
             'collect_participant_info': survey.collect_participant_info,
@@ -1318,7 +1322,7 @@ def create_poll(title, description=None, start_date=None, end_date=None, options
 
 
 @frappe.whitelist()
-def create_survey(title, description=None, start_date=None, end_date=None, questions=None, collect_participant_info=0):
+def create_survey(title, description=None, start_date=None, end_date=None, questions=None, collect_participant_info=0, title_color=None, section_text_color=None, field_label_color=None, field_content_color=None):
     try:
         if isinstance(questions, str):
             questions = json.loads(questions)
@@ -1345,7 +1349,11 @@ def create_survey(title, description=None, start_date=None, end_date=None, quest
         survey = frappe.get_doc({
             'doctype': 'Survey',
             'title': title,
+            'title_color': title_color or '',
             'description': description,
+            'section_text_color': section_text_color or '',
+            'field_label_color': field_label_color or '',
+            'field_content_color': field_content_color or '',
             'status': 'Draft',
             'start_date': start_date,
             'end_date': end_date,
@@ -1566,7 +1574,7 @@ def delete_survey(survey_name):
 
 
 @frappe.whitelist()
-def update_survey(survey_name, title, description=None, start_date=None, end_date=None, questions=None, status=None, collect_participant_info=0):
+def update_survey(survey_name, title, description=None, start_date=None, end_date=None, questions=None, status=None, collect_participant_info=0, title_color=None, section_text_color=None, field_label_color=None, field_content_color=None):
     """
     Update an existing Survey document and its questions.
     Accessible by System Manager, Poll Manager, and Project Manager.
@@ -1596,8 +1604,12 @@ def update_survey(survey_name, title, description=None, start_date=None, end_dat
             return {'error': 'Survey title is required'}
 
         survey.title = title.strip()
+        survey.title_color = title_color or ''
         if description is not None:
             survey.description = description
+        survey.section_text_color = section_text_color or ''
+        survey.field_label_color = field_label_color or ''
+        survey.field_content_color = field_content_color or ''
         survey.start_date = start_date if start_date and start_date != 'null' else None
         survey.end_date = end_date if end_date and end_date != 'null' else None
         survey.collect_participant_info = 1 if str(collect_participant_info).lower() in ('1', 'true') else 0

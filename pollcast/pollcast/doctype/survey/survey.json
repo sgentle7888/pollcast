@@ -10,7 +10,11 @@
   "field_order": [
     "naming_series",
     "title",
+    "title_color",
     "description",
+    "section_text_color",
+    "field_label_color",
+    "field_content_color",
     "column_break_4",
     "status",
     "multi_page",
@@ -40,9 +44,29 @@
       "reqd": 1
     },
     {
+      "fieldname": "title_color",
+      "fieldtype": "Data",
+      "label": "Title Color"
+    },
+    {
       "fieldname": "description",
       "fieldtype": "Text Editor",
       "label": "Description"
+    },
+    {
+      "fieldname": "section_text_color",
+      "fieldtype": "Data",
+      "label": "Section Text Color"
+    },
+    {
+      "fieldname": "field_label_color",
+      "fieldtype": "Data",
+      "label": "Field Label Color"
+    },
+    {
+      "fieldname": "field_content_color",
+      "fieldtype": "Data",
+      "label": "Field Content Color"
     },
     {
       "fieldname": "column_break_4",

@@ -218,17 +218,52 @@
             <label class="form-label"
               >Title <span class="mandatory-star">*</span></label
             >
-            <input
-              type="text"
-              class="form-control"
-              v-model="form.title"
-              :placeholder="
-                type === 'poll'
-                  ? 'e.g. Best programming language 2025?'
-                  : 'e.g. Q2 Employee Satisfaction Survey'
-              "
-              maxlength="200"
-            />
+            <div class="title-input-row">
+              <input
+                type="text"
+                class="form-control"
+                v-model="form.title"
+                :placeholder="
+                  type === 'poll'
+                    ? 'e.g. Best programming language 2025?'
+                    : 'e.g. Q2 Employee Satisfaction Survey'
+                "
+                maxlength="200"
+              />
+              <label class="title-color-control" title="Title color">
+                <span class="text-xs text-secondary">Color</span>
+                <input
+                  type="color"
+                  :value="form.titleColor || '#1f2937'"
+                  @input="form.titleColor = $event.target.value"
+                  :disabled="type !== 'survey'"
+                />
+              </label>
+            </div>
+          </div>
+          <div
+            v-if="type === 'survey'"
+            class="form-group survey-color-settings"
+            style="grid-column: span 2"
+          >
+            <label class="form-label">Question Colors</label>
+            <div class="survey-color-controls">
+              <label
+                v-for="setting in surveyColorSettings"
+                :key="setting.key"
+                class="survey-color-control"
+              >
+                <span class="text-xs text-secondary">{{ setting.label }}</span>
+                <span class="survey-color-input">
+                  <input
+                    type="color"
+                    :value="form[setting.key] || '#1f2937'"
+                    @input="form[setting.key] = $event.target.value"
+                  />
+                  <span>{{ form[setting.key] || "Default" }}</span>
+                </span>
+              </label>
+            </div>
           </div>
           <div class="form-group" style="grid-column: span 2">
             <label class="form-label">Description / Instructions</label>
@@ -397,21 +432,28 @@
                 class="form-control"
                 v-model="opt.text"
                 :placeholder="'Option ' + (i + 1)"
-                :style="opt.color ? { color: opt.color, borderColor: opt.color } : {}"
+                :style="
+                  opt.color ? { color: opt.color, borderColor: opt.color } : {}
+                "
                 :disabled="isEditMode && responseCount > 0 && !auth.isAdmin"
               />
               <div class="opt-color-picker-wrap">
                 <button
                   type="button"
                   class="btn btn-ghost btn-sm q-color-toggle-btn"
-                  :class="{ 'has-color': !!opt.color, active: openOptionColorIndex === i }"
+                  :class="{
+                    'has-color': !!opt.color,
+                    active: openOptionColorIndex === i,
+                  }"
                   :title="'Option Color: ' + (opt.color || 'Default')"
                   :disabled="isEditMode && responseCount > 0 && !auth.isAdmin"
                   @click.stop="toggleOptionColorPopover(i)"
                 >
                   <span
                     class="q-color-disc"
-                    :style="{ backgroundColor: opt.color || 'var(--text-primary)' }"
+                    :style="{
+                      backgroundColor: opt.color || 'var(--text-primary)',
+                    }"
                   ></span>
                   <span class="q-color-btn-label">Color</span>
                 </button>
@@ -427,7 +469,10 @@
                     <button
                       type="button"
                       class="btn-reset-color"
-                      @click="opt.color = ''; openOptionColorIndex = null"
+                      @click="
+                        opt.color = '';
+                        openOptionColorIndex = null;
+                      "
                     >
                       Reset
                     </button>
@@ -438,10 +483,18 @@
                       :key="c.value"
                       type="button"
                       class="color-swatch-btn"
-                      :class="{ active: opt.color === c.value, 'is-default': !c.value }"
-                      :style="{ backgroundColor: c.value || 'var(--text-primary)' }"
+                      :class="{
+                        active: opt.color === c.value,
+                        'is-default': !c.value,
+                      }"
+                      :style="{
+                        backgroundColor: c.value || 'var(--text-primary)',
+                      }"
                       :title="c.label"
-                      @click="opt.color = c.value; openOptionColorIndex = null"
+                      @click="
+                        opt.color = c.value;
+                        openOptionColorIndex = null;
+                      "
                     >
                       <svg
                         v-if="opt.color === c.value"
@@ -622,95 +675,6 @@
                     : 'Question ' + (qi + 1) + ' — what do you want to know?'
                 "
               />
-              <div class="q-color-picker-wrap">
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-sm q-color-toggle-btn"
-                  :class="{ 'has-color': !!q.color, active: openQuestionColorIndex === qi }"
-                  :title="'Question Color: ' + (q.color || 'Default')"
-                  @click.stop="toggleQuestionColorPopover(qi)"
-                >
-                  <span
-                    class="q-color-disc"
-                    :style="{ backgroundColor: q.color || 'var(--text-primary)' }"
-                  ></span>
-                  <span class="q-color-btn-label">Color</span>
-                </button>
-
-                <!-- Color popover -->
-                <div
-                  v-if="openQuestionColorIndex === qi"
-                  class="q-color-popover card-glass animate-fade-in-up"
-                  @click.stop
-                >
-                  <div class="q-color-popover-header">
-                    <span class="text-xs font-semibold">Question Text Color</span>
-                    <button
-                      type="button"
-                      class="btn-reset-color"
-                      @click="q.color = ''; openQuestionColorIndex = null"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                  <div class="q-color-palette-grid">
-                    <button
-                      v-for="c in colorPalette"
-                      :key="c.value"
-                      type="button"
-                      class="color-swatch-btn"
-                      :class="{ active: q.color === c.value, 'is-default': !c.value }"
-                      :style="{ backgroundColor: c.value || 'var(--text-primary)' }"
-                      :title="c.label"
-                      @click="q.color = c.value; openQuestionColorIndex = null"
-                    >
-                      <svg
-                        v-if="q.color === c.value"
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="white"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="q-color-custom-row">
-                    <label class="color-picker-label" title="Custom color">
-                      <input
-                        type="color"
-                        class="color-native-input"
-                        :value="q.color || '#7c3aed'"
-                        @input="q.color = $event.target.value"
-                      />
-                      <span
-                        class="color-preview-disc"
-                        :style="{ backgroundColor: q.color || '#7c3aed' }"
-                      ></span>
-                      <span class="text-xs font-medium">Custom</span>
-                    </label>
-                    <input
-                      type="text"
-                      class="form-control form-control-sm color-hex-input"
-                      placeholder="#7c3aed"
-                      :value="q.color"
-                      maxlength="9"
-                      @input="q.color = $event.target.value"
-                    />
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-sm"
-                      @click="openQuestionColorIndex = null"
-                    >
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <!-- MC/Checkbox sub-options -->
@@ -868,7 +832,10 @@
           </div>
           <div class="review-row">
             <span class="review-label">Title</span
-            ><strong>{{ form.title }}</strong>
+            ><strong
+              :style="form.titleColor ? { color: form.titleColor } : {}"
+              >{{ form.title }}</strong
+            >
           </div>
           <div v-if="isEditMode" class="review-row">
             <span class="review-label">Status</span
@@ -900,7 +867,12 @@
                 class="review-option"
               >
                 <span class="review-option-num">{{ i + 1 }}</span>
-                <span :style="opt.color ? { color: opt.color, fontWeight: 600 } : {}">{{ opt.text }}</span>
+                <span
+                  :style="
+                    opt.color ? { color: opt.color, fontWeight: 600 } : {}
+                  "
+                  >{{ opt.text }}</span
+                >
               </div>
             </div>
           </div>
@@ -1150,6 +1122,12 @@ const colorPalette = [
   { label: "Purple", value: "#9333ea" },
 ];
 
+const surveyColorSettings = [
+  { key: "sectionTextColor", label: "Section Text color" },
+  { key: "fieldLabelColor", label: "Field label color" },
+  { key: "fieldContentColor", label: "Field content color" },
+];
+
 const toggleQuestionColorPopover = (index) => {
   openOptionColorIndex.value = null;
   openQuestionColorIndex.value =
@@ -1275,14 +1253,27 @@ const createAnother = () => {
   linkCopied.value = false;
   form.value = {
     title: "",
+    titleColor: "",
     description: "",
+    sectionTextColor: "",
+    fieldLabelColor: "",
+    fieldContentColor: "",
     status: "Draft",
     startDate: "",
     endDate: "",
     collectParticipantInfo: false,
-    options: [{ text: "", color: "" }, { text: "", color: "" }],
+    options: [
+      { text: "", color: "" },
+      { text: "", color: "" },
+    ],
     questions: [
-      { text: "", type: "Rating Scale", required: true, color: "", options: ["", ""] },
+      {
+        text: "",
+        type: "Rating Scale",
+        required: true,
+        color: "",
+        options: ["", ""],
+      },
     ],
   };
   step.value = 0;
@@ -1296,14 +1287,27 @@ const wizardSteps = computed(() =>
 
 const form = ref({
   title: "",
+  titleColor: "",
   description: "",
+  sectionTextColor: "",
+  fieldLabelColor: "",
+  fieldContentColor: "",
   status: "Draft",
   startDate: "",
   endDate: "",
   collectParticipantInfo: false,
-  options: [{ text: "", color: "" }, { text: "", color: "" }],
+  options: [
+    { text: "", color: "" },
+    { text: "", color: "" },
+  ],
   questions: [
-    { text: "", type: "Rating Scale", required: true, color: "", options: ["", ""] },
+    {
+      text: "",
+      type: "Rating Scale",
+      required: true,
+      color: "",
+      options: ["", ""],
+    },
   ],
 });
 
@@ -1321,7 +1325,11 @@ const loadSurveyForEdit = async (name) => {
       createdName.value = res.name;
       responseCount.value = res.total_responses || 0;
       form.value.title = res.title || "";
+      form.value.titleColor = res.title_color || "";
       form.value.description = res.description || "";
+      form.value.sectionTextColor = res.section_text_color || "";
+      form.value.fieldLabelColor = res.field_label_color || "";
+      form.value.fieldContentColor = res.field_content_color || "";
       form.value.status = res.status || "Draft";
       form.value.startDate = toDatetimeLocal(res.start_date);
       form.value.endDate = toDatetimeLocal(res.end_date);
@@ -1488,6 +1496,10 @@ const submit = async () => {
           poll_name: targetDocName.value,
           title: form.value.title,
           description: form.value.description,
+          title_color: form.value.titleColor,
+          section_text_color: form.value.sectionTextColor,
+          field_label_color: form.value.fieldLabelColor,
+          field_content_color: form.value.fieldContentColor,
           status: form.value.status,
           start_date: form.value.startDate || null,
           end_date: form.value.endDate || null,
@@ -1533,6 +1545,10 @@ const submit = async () => {
       result = await frappeCall("pollcast.api.create_poll", {
         title: form.value.title,
         description: form.value.description,
+        title_color: form.value.titleColor,
+        section_text_color: form.value.sectionTextColor,
+        field_label_color: form.value.fieldLabelColor,
+        field_content_color: form.value.fieldContentColor,
         start_date: form.value.startDate || null,
         end_date: form.value.endDate || null,
         options: form.value.options
@@ -1580,6 +1596,56 @@ const submit = async () => {
 .create-view {
   display: flex;
   flex-direction: column;
+}
+
+.title-input-row,
+.survey-color-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title-input-row .form-control {
+  flex: 1;
+}
+
+.title-color-control,
+.survey-color-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.title-color-control input,
+.survey-color-input input {
+  width: 2rem;
+  height: 2rem;
+  padding: 0.15rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.survey-color-settings {
+  padding: 0.875rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-md);
+  background: var(--glass-bg);
+}
+
+.survey-color-settings .form-label {
+  margin-bottom: 0.625rem;
+}
+
+.survey-color-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
 .drag-handle {
@@ -2035,7 +2101,9 @@ const submit = async () => {
   font-size: 0.78rem;
   padding: 0.3rem 0.75rem;
   border-radius: var(--r-sm);
-  transition: background 0.15s, box-shadow 0.15s;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
 }
 
 /* ── Question text-input + color picker row ── */
@@ -2065,7 +2133,9 @@ const submit = async () => {
   font-size: 0.78rem;
   border-radius: var(--r-sm);
   border: 1px solid var(--glass-border);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   white-space: nowrap;
 }
 
@@ -2141,7 +2211,9 @@ const submit = async () => {
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s;
+  transition:
+    transform 0.12s,
+    border-color 0.12s;
   display: flex;
   align-items: center;
   justify-content: center;

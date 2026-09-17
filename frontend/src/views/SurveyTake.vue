@@ -118,7 +118,12 @@
             ><span class="sep">/</span>
             <span class="current">{{ survey.title }}</span>
           </div>
-          <h1 class="page-title">{{ survey.title }}</h1>
+          <h1
+            class="page-title"
+            :style="survey.title_color ? { color: survey.title_color } : {}"
+          >
+            {{ survey.title }}
+          </h1>
           <div
             v-if="sanitizedDescription"
             class="page-subtitle rich-description"
@@ -168,14 +173,30 @@
         </div>
       </div>
 
-      <form @submit.prevent="submitSurvey">
+      <form
+        class="survey-response-form"
+        :style="{
+          '--survey-field-label-color':
+            survey.field_label_color || 'var(--text-primary)',
+          '--survey-field-content-color':
+            survey.field_content_color || 'var(--text-primary)',
+        }"
+        @submit.prevent="submitSurvey"
+      >
         <!-- ───────── Participant Information ───────── -->
         <div
           v-if="survey.collect_participant_info"
           class="card participant-info-section"
           style="margin-bottom: 1.5rem"
         >
-          <h3 class="section-heading">
+          <h3
+            class="section-heading"
+            :style="
+              survey.section_text_color
+                ? { color: survey.section_text_color }
+                : {}
+            "
+          >
             <svg
               width="16"
               height="16"
@@ -259,19 +280,38 @@
               v-if="q.question_type === 'Section Heading'"
               class="survey-section-heading"
             >
-              <h3 :style="q.color ? { color: q.color } : {}">{{ q.question_text }}</h3>
+              <h3
+                :style="
+                  survey.section_text_color ? { color: survey.section_text_color } : {}"
+                "
+              >
+                {{ q.question_text }}
+              </h3>
             </div>
             <div
               v-else-if="q.question_type === 'Rating Scale'"
               class="card question-card ordered-rating-card"
               style="margin-bottom: 1rem"
             >
-              <div class="question-title" :style="q.color ? { color: q.color } : {}">
+              <div
+                class="question-title"
+                :style="
+                  survey.field_label_color ? { color: survey.field_label_color } : {}"
+                "
+              >
                 {{ q.question_text }}
                 <span v-if="q.required" class="mandatory-star">*</span>
               </div>
               <div class="ordered-rating-options">
-                <label v-for="score in [1, 2, 3, 4, 5]" :key="score">
+                <label
+                  v-for="score in [1, 2, 3, 4, 5]"
+                  :key="score"
+                  :style="
+                    survey.field_content_color
+                      ? { color: survey.field_content_color }
+                      : {}
+                  "
+                >
                   <input
                     type="radio"
                     :name="'q-' + q.name"
@@ -280,7 +320,13 @@
                   />
                   {{ score }}
                 </label>
-                <label>
+                <label
+                  :style="
+                    survey.field_content_color
+                      ? { color: survey.field_content_color }
+                      : {}
+                  "
+                >
                   <input
                     type="radio"
                     :name="'q-' + q.name"
@@ -299,7 +345,12 @@
               class="card question-card"
               style="margin-bottom: 1rem"
             >
-              <div class="question-title" :style="q.color ? { color: q.color } : {}">
+              <div
+                class="question-title"
+                :style="
+                  survey.field_label_color ? { color: survey.field_label_color } : {}"
+                "
+              >
                 {{ q.question_text }}
                 <span v-if="q.required" class="mandatory-star">*</span>
               </div>
@@ -324,7 +375,15 @@
                   v-model="responses[q.name]"
                   class="choice-radio"
                 />
-                <span class="choice-label">{{ opt }}</span>
+                <span
+                  class="choice-label"
+                  :style="
+                    survey.field_content_color
+                      ? { color: survey.field_content_color }
+                      : {}
+                  "
+                  >{{ opt }}</span
+                >
               </label>
             </div>
             <div
@@ -332,7 +391,12 @@
               class="card question-card"
               style="margin-bottom: 1rem"
             >
-              <div class="question-title" :style="q.color ? { color: q.color } : {}">
+              <div
+                class="question-title"
+                :style="
+                  survey.field_label_color ? { color: survey.field_label_color } : {}"
+                "
+              >
                 {{ q.question_text }}
                 <span v-if="q.required" class="mandatory-star">*</span>
               </div>
@@ -341,6 +405,11 @@
                 v-model="responses[q.name]"
                 rows="4"
                 placeholder="Your response…"
+                :style="
+                  survey.field_content_color
+                    ? { color: survey.field_content_color }
+                    : {}
+                "
               ></textarea>
             </div>
           </template>
@@ -352,7 +421,14 @@
           class="card rating-matrix-section"
           style="margin-bottom: 1.5rem"
         >
-          <h3 class="section-heading">
+          <h3
+            class="section-heading"
+            :style="
+              survey.section_text_color
+                ? { color: survey.section_text_color }
+                : {}
+            "
+          >
             <svg
               width="16"
               height="16"
@@ -424,7 +500,12 @@
                   :class="['', { 'row-rated': responses[q.name] }]"
                 >
                   <td>
-                    <div class="criteria-label" :style="q.color ? { color: q.color } : {}">
+                    <div
+                      class="criteria-label"
+                      :style="
+                        survey.field_label_color ? { color: survey.field_label_color } : {}"
+                      "
+                    >
                       {{ q.question_text }}
                       <span v-if="q.required" class="mandatory-star">*</span>
                     </div>
@@ -462,7 +543,12 @@
           class="card question-card"
           style="margin-bottom: 1rem"
         >
-          <div class="question-title" :style="q.color ? { color: q.color } : {}">
+          <div
+            class="question-title"
+            :style="
+              survey.field_label_color ? { color: survey.field_label_color } : {}"
+            "
+          >
             {{ q.question_text }}
             <span v-if="q.required" class="mandatory-star">*</span>
           </div>
@@ -481,7 +567,15 @@
                 v-model="responses[q.name]"
                 class="choice-radio"
               />
-              <span class="choice-label">{{ opt }}</span>
+              <span
+                class="choice-label"
+                :style="
+                  survey.field_content_color
+                    ? { color: survey.field_content_color }
+                    : {}
+                "
+                >{{ opt }}</span
+              >
             </label>
             <!-- Checkbox -->
             <label
@@ -496,7 +590,15 @@
                 v-model="checkboxResponses[q.name]"
                 class="choice-check"
               />
-              <span class="choice-label">{{ opt }}</span>
+              <span
+                class="choice-label"
+                :style="
+                  survey.field_content_color
+                    ? { color: survey.field_content_color }
+                    : {}
+                "
+                >{{ opt }}</span
+              >
             </label>
           </div>
         </div>
@@ -509,7 +611,12 @@
           class="card question-card"
           style="margin-bottom: 1rem"
         >
-          <div class="question-title" :style="q.color ? { color: q.color } : {}">
+          <div
+            class="question-title"
+            :style="
+              survey.field_label_color ? { color: survey.field_label_color } : {}"
+            "
+          >
             {{ q.question_text }}
             <span v-if="q.required" class="mandatory-star">*</span>
           </div>
@@ -518,12 +625,24 @@
             v-model="responses[q.name]"
             rows="4"
             :placeholder="'Your response…'"
+            :style="
+              survey.field_content_color
+                ? { color: survey.field_content_color }
+                : {}
+            "
           ></textarea>
         </div>
 
         <!-- ───────── Additional Comments ───────── -->
         <div class="card" style="margin-bottom: 1.5rem">
-          <h3 class="section-heading">
+          <h3
+            class="section-heading"
+            :style="
+              survey.section_text_color
+                ? { color: survey.section_text_color }
+                : {}
+            "
+          >
             <svg
               width="16"
               height="16"
@@ -641,9 +760,29 @@ const displayCompanyName = computed(() =>
 // Allow rich-text colour styles to survive sanitisation
 const richPurifyConfig = {
   ALLOWED_TAGS: [
-    "p", "br", "strong", "b", "em", "i", "u", "s", "strike",
-    "h1", "h2", "h3", "h4", "h5", "h6",
-    "ul", "ol", "li", "blockquote", "a", "span", "div", "font",
+    "p",
+    "br",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "u",
+    "s",
+    "strike",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "a",
+    "span",
+    "div",
+    "font",
   ],
   ALLOWED_ATTR: ["href", "target", "rel", "class", "style", "color"],
 };
@@ -856,6 +995,19 @@ const submitSurvey = async () => {
 .survey-take {
   display: flex;
   flex-direction: column;
+}
+
+.survey-response-form .form-label {
+  color: var(--survey-field-label-color);
+}
+
+.survey-response-form .form-control {
+  color: var(--survey-field-content-color);
+}
+
+.survey-response-form .choice-label,
+.survey-response-form .ordered-rating-options label {
+  color: var(--survey-field-content-color);
 }
 
 /* Sections */
