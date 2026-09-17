@@ -14,7 +14,8 @@
     "options",
     "column_break_8",
     "scale_min",
-    "scale_max"
+    "scale_max",
+    "color"
   ],
   "fields": [
     {
@@ -77,6 +78,11 @@
       "fieldname": "scale_max",
       "fieldtype": "Int",
       "label": "Scale Maximum"
+    },
+    {
+      "fieldname": "color",
+      "fieldtype": "Data",
+      "label": "Text Color"
     }
   ],
   "index_web_pages_for_search": 1,

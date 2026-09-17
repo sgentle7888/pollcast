@@ -10,7 +10,8 @@
     "column_break_3",
     "allow_multiple",
     "section_break_5",
-    "options"
+    "options",
+    "color"
   ],
   "fields": [
     {
@@ -51,6 +52,11 @@
       "fieldname": "options",
       "fieldtype": "Text",
       "label": "Options (one per line)"
+    },
+    {
+      "fieldname": "color",
+      "fieldtype": "Data",
+      "label": "Text Color"
     }
   ],
   "index_web_pages_for_search": 1,

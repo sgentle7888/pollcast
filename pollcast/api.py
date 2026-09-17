@@ -108,6 +108,7 @@ def get_poll(poll_name):
                 'name': q.name,
                 'question_text': q.question_text,
                 'question_type': q.question_type,
+                'color': getattr(q, 'color', None) or '',
             }
             if q.options:
                 q_data['options'] = [
@@ -293,6 +294,7 @@ def get_survey(survey_name):
                 'question_type': q.question_type,
                 'required': q.required,
                 'page_number': q.page_number or 1,
+                'color': getattr(q, 'color', None) or '',
             }
             if q.question_type in ['Multiple Choice', 'Checkbox']:
                 q_data['options'] = [
@@ -1288,10 +1290,30 @@ def create_poll(title, description=None, start_date=None, end_date=None, options
             'status': 'Draft',
             'start_date': start_date,
             'end_date': end_date,
-            'questions': [
-                {'question_text': opt, 'question_type': 'Single Choice', 'options': opt}
-                for opt in options
-            ]
+        poll_questions = []
+        for opt in options:
+            if isinstance(opt, dict):
+                text = str(opt.get('text') or opt.get('question_text') or '').strip()
+                color = str(opt.get('color') or '').strip()
+            else:
+                text = str(opt).strip()
+                color = ''
+            if text:
+                poll_questions.append({
+                    'question_text': text,
+                    'question_type': 'Single Choice',
+                    'options': text,
+                    'color': color,
+                })
+
+        poll = frappe.get_doc({
+            'doctype': 'Poll',
+            'title': title,
+            'description': description,
+            'status': 'Draft',
+            'start_date': start_date,
+            'end_date': end_date,
+            'questions': poll_questions
         })
         poll.insert()
         frappe.db.commit()
@@ -1316,9 +1338,10 @@ def create_survey(title, description=None, start_date=None, end_date=None, quest
         survey_questions = []
         for q in questions:
             row = {
-                'question_text': q.get('question_text'),
-                'question_type': q.get('question_type'),
+                'question_text': q.get('question_text') or q.get('text'),
+                'question_type': q.get('question_type') or q.get('type'),
                 'required': 1 if q.get('required') else 0,
+                'color': q.get('color') or '',
             }
             opts = q.get('options') or []
             if opts:
@@ -1603,6 +1626,7 @@ def update_survey(survey_name, title, description=None, start_date=None, end_dat
                     'question_type': q.get('question_type') or q.get('type') or 'Rating Scale',
                     'required': 1 if (q.get('required') is True or q.get('required') == 1) else 0,
                     'page_number': q.get('page_number') or 1,
+                    'color': q.get('color') or '',
                 }
                 opts = q.get('options') or []
                 if isinstance(opts, list):
@@ -1670,16 +1694,28 @@ def update_poll(poll_name, title, description=None, start_date=None, end_date=No
                 options = json.loads(options)
             options = options or []
 
-            clean_options = [str(o).strip() for o in options if str(o).strip()]
-            if len(clean_options) < 2:
+            clean_items = []
+            for o in options:
+                if isinstance(o, dict):
+                    t = str(o.get('text') or o.get('question_text') or '').strip()
+                    c = str(o.get('color') or '').strip()
+                    if t:
+                        clean_items.append({'text': t, 'color': c})
+                else:
+                    t = str(o).strip()
+                    if t:
+                        clean_items.append({'text': t, 'color': ''})
+
+            if len(clean_items) < 2:
                 return {'error': 'A poll needs at least 2 options'}
 
             poll.set('questions', [])
-            for opt in clean_options:
+            for item in clean_items:
                 poll.append('questions', {
-                    'question_text': opt,
+                    'question_text': item['text'],
                     'question_type': 'Single Choice',
-                    'options': opt,
+                    'options': item['text'],
+                    'color': item['color'],
                 })
 
         poll.save()

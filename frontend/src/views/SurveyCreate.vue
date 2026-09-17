@@ -391,14 +391,106 @@
             >
               ⋮⋮
             </div>
-            <div class="opt-num">{{ i + 1 }}</div>
-            <input
-              type="text"
-              class="form-control"
-              v-model="opt.text"
-              :placeholder="'Option ' + (i + 1)"
-              :disabled="isEditMode && responseCount > 0 && !auth.isAdmin"
-            />
+            <div class="opt-input-color-wrap">
+              <input
+                type="text"
+                class="form-control"
+                v-model="opt.text"
+                :placeholder="'Option ' + (i + 1)"
+                :style="opt.color ? { color: opt.color, borderColor: opt.color } : {}"
+                :disabled="isEditMode && responseCount > 0 && !auth.isAdmin"
+              />
+              <div class="opt-color-picker-wrap">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm q-color-toggle-btn"
+                  :class="{ 'has-color': !!opt.color, active: openOptionColorIndex === i }"
+                  :title="'Option Color: ' + (opt.color || 'Default')"
+                  :disabled="isEditMode && responseCount > 0 && !auth.isAdmin"
+                  @click.stop="toggleOptionColorPopover(i)"
+                >
+                  <span
+                    class="q-color-disc"
+                    :style="{ backgroundColor: opt.color || 'var(--text-primary)' }"
+                  ></span>
+                  <span class="q-color-btn-label">Color</span>
+                </button>
+
+                <!-- Option Color Popover -->
+                <div
+                  v-if="openOptionColorIndex === i"
+                  class="q-color-popover card-glass animate-fade-in-up"
+                  @click.stop
+                >
+                  <div class="q-color-popover-header">
+                    <span class="text-xs font-semibold">Option Color</span>
+                    <button
+                      type="button"
+                      class="btn-reset-color"
+                      @click="opt.color = ''; openOptionColorIndex = null"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div class="q-color-palette-grid">
+                    <button
+                      v-for="c in colorPalette"
+                      :key="c.value"
+                      type="button"
+                      class="color-swatch-btn"
+                      :class="{ active: opt.color === c.value, 'is-default': !c.value }"
+                      :style="{ backgroundColor: c.value || 'var(--text-primary)' }"
+                      :title="c.label"
+                      @click="opt.color = c.value; openOptionColorIndex = null"
+                    >
+                      <svg
+                        v-if="opt.color === c.value"
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="white"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="q-color-custom-row">
+                    <label class="color-picker-label" title="Custom color">
+                      <input
+                        type="color"
+                        class="color-native-input"
+                        :value="opt.color || '#7c3aed'"
+                        @input="opt.color = $event.target.value"
+                      />
+                      <span
+                        class="color-preview-disc"
+                        :style="{ backgroundColor: opt.color || '#7c3aed' }"
+                      ></span>
+                      <span class="text-xs font-medium">Custom</span>
+                    </label>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm color-hex-input"
+                      placeholder="#7c3aed"
+                      :value="opt.color"
+                      maxlength="9"
+                      @input="opt.color = $event.target.value"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      @click="openOptionColorIndex = null"
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <button
               class="btn btn-ghost btn-icon"
               @click="removeOption(i)"
@@ -518,16 +610,108 @@
                 </svg>
               </button>
             </div>
-            <input
-              type="text"
-              class="form-control q-text"
-              v-model="q.text"
-              :placeholder="
-                q.type === 'Section Heading'
-                  ? 'Section heading'
-                  : 'Question ' + (qi + 1) + ' — what do you want to know?'
-              "
-            />
+            <div class="q-text-input-wrap">
+              <input
+                type="text"
+                class="form-control q-text"
+                v-model="q.text"
+                :style="q.color ? { color: q.color, borderColor: q.color } : {}"
+                :placeholder="
+                  q.type === 'Section Heading'
+                    ? 'Section heading'
+                    : 'Question ' + (qi + 1) + ' — what do you want to know?'
+                "
+              />
+              <div class="q-color-picker-wrap">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm q-color-toggle-btn"
+                  :class="{ 'has-color': !!q.color, active: openQuestionColorIndex === qi }"
+                  :title="'Question Color: ' + (q.color || 'Default')"
+                  @click.stop="toggleQuestionColorPopover(qi)"
+                >
+                  <span
+                    class="q-color-disc"
+                    :style="{ backgroundColor: q.color || 'var(--text-primary)' }"
+                  ></span>
+                  <span class="q-color-btn-label">Color</span>
+                </button>
+
+                <!-- Color popover -->
+                <div
+                  v-if="openQuestionColorIndex === qi"
+                  class="q-color-popover card-glass animate-fade-in-up"
+                  @click.stop
+                >
+                  <div class="q-color-popover-header">
+                    <span class="text-xs font-semibold">Question Text Color</span>
+                    <button
+                      type="button"
+                      class="btn-reset-color"
+                      @click="q.color = ''; openQuestionColorIndex = null"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div class="q-color-palette-grid">
+                    <button
+                      v-for="c in colorPalette"
+                      :key="c.value"
+                      type="button"
+                      class="color-swatch-btn"
+                      :class="{ active: q.color === c.value, 'is-default': !c.value }"
+                      :style="{ backgroundColor: c.value || 'var(--text-primary)' }"
+                      :title="c.label"
+                      @click="q.color = c.value; openQuestionColorIndex = null"
+                    >
+                      <svg
+                        v-if="q.color === c.value"
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="white"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="q-color-custom-row">
+                    <label class="color-picker-label" title="Custom color">
+                      <input
+                        type="color"
+                        class="color-native-input"
+                        :value="q.color || '#7c3aed'"
+                        @input="q.color = $event.target.value"
+                      />
+                      <span
+                        class="color-preview-disc"
+                        :style="{ backgroundColor: q.color || '#7c3aed' }"
+                      ></span>
+                      <span class="text-xs font-medium">Custom</span>
+                    </label>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm color-hex-input"
+                      placeholder="#7c3aed"
+                      :value="q.color"
+                      maxlength="9"
+                      @input="q.color = $event.target.value"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      @click="openQuestionColorIndex = null"
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <!-- MC/Checkbox sub-options -->
             <div
@@ -578,6 +762,52 @@
                 <span v-for="n in 5" :key="n" class="rating-dot">{{ n }}</span>
                 <span class="rating-dot na">N/A</span>
               </div>
+            </div>
+
+            <!-- Inline Action Bar Below EVERY Survey Question -->
+            <div class="q-inline-insert-bar">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm q-inline-btn"
+                @click="addQuestion(qi)"
+                title="Add a new question below this item"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Question
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm q-inline-btn"
+                @click="addSection(qi)"
+                title="Add a new section heading below this item"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Section
+              </button>
             </div>
           </div>
 
@@ -669,8 +899,8 @@
                 :key="i"
                 class="review-option"
               >
-                <span class="review-option-num">{{ i + 1 }}</span
-                >{{ opt.text }}
+                <span class="review-option-num">{{ i + 1 }}</span>
+                <span :style="opt.color ? { color: opt.color, fontWeight: 600 } : {}">{{ opt.text }}</span>
               </div>
             </div>
           </div>
@@ -690,7 +920,13 @@
                     >Required</span
                   >
                 </div>
-                <p class="text-sm" style="margin-top: 0.35rem">{{ q.text }}</p>
+                <p
+                  class="text-sm"
+                  :style="q.color ? { color: q.color, fontWeight: 600 } : {}"
+                  style="margin-top: 0.35rem"
+                >
+                  {{ q.text }}
+                </p>
               </div>
             </div>
           </div>
@@ -872,7 +1108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted, watch } from "vue";
+import { ref, computed, inject, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "../stores/auth.js";
 import { frappeCall } from "../api/frappe.js";
@@ -893,6 +1129,53 @@ const linkCopied = ref(false);
 
 const loadingDoc = ref(false);
 const responseCount = ref(0);
+
+const openQuestionColorIndex = ref(null);
+const openOptionColorIndex = ref(null);
+
+const colorPalette = [
+  { label: "Default", value: "" },
+  { label: "Dark Gray", value: "#1f2937" },
+  { label: "Slate", value: "#475569" },
+  { label: "Indigo", value: "#4f46e5" },
+  { label: "Violet", value: "#7c3aed" },
+  { label: "Blue", value: "#2563eb" },
+  { label: "Cyan", value: "#0891b2" },
+  { label: "Emerald", value: "#059669" },
+  { label: "Green", value: "#16a34a" },
+  { label: "Amber", value: "#d97706" },
+  { label: "Orange", value: "#ea580c" },
+  { label: "Rose", value: "#e11d48" },
+  { label: "Red", value: "#dc2626" },
+  { label: "Purple", value: "#9333ea" },
+];
+
+const toggleQuestionColorPopover = (index) => {
+  openOptionColorIndex.value = null;
+  openQuestionColorIndex.value =
+    openQuestionColorIndex.value === index ? null : index;
+};
+
+const toggleOptionColorPopover = (index) => {
+  openQuestionColorIndex.value = null;
+  openOptionColorIndex.value =
+    openOptionColorIndex.value === index ? null : index;
+};
+
+const handleWindowClick = (e) => {
+  if (
+    openQuestionColorIndex.value !== null &&
+    !e.target.closest(".q-color-picker-wrap")
+  ) {
+    openQuestionColorIndex.value = null;
+  }
+  if (
+    openOptionColorIndex.value !== null &&
+    !e.target.closest(".opt-color-picker-wrap")
+  ) {
+    openOptionColorIndex.value = null;
+  }
+};
 
 const targetDocName = computed(
   () => route.query.name || route.params.name || "",
@@ -921,8 +1204,37 @@ const shareUrl = computed(() => {
   return base + path;
 });
 
+const purifyConfig = {
+  ALLOWED_TAGS: [
+    "p",
+    "br",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "u",
+    "s",
+    "strike",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "a",
+    "span",
+    "div",
+    "font",
+  ],
+  ALLOWED_ATTR: ["href", "target", "rel", "class", "style", "color"],
+};
+
 const sanitizedDescription = computed(() =>
-  DOMPurify.sanitize(form.value.description || ""),
+  DOMPurify.sanitize(form.value.description || "", purifyConfig),
 );
 
 const toDatetimeLocal = (str) => {
@@ -968,9 +1280,9 @@ const createAnother = () => {
     startDate: "",
     endDate: "",
     collectParticipantInfo: false,
-    options: [{ text: "" }, { text: "" }],
+    options: [{ text: "", color: "" }, { text: "", color: "" }],
     questions: [
-      { text: "", type: "Rating Scale", required: true, options: ["", ""] },
+      { text: "", type: "Rating Scale", required: true, color: "", options: ["", ""] },
     ],
   };
   step.value = 0;
@@ -989,9 +1301,9 @@ const form = ref({
   startDate: "",
   endDate: "",
   collectParticipantInfo: false,
-  options: [{ text: "" }, { text: "" }],
+  options: [{ text: "", color: "" }, { text: "", color: "" }],
   questions: [
-    { text: "", type: "Rating Scale", required: true, options: ["", ""] },
+    { text: "", type: "Rating Scale", required: true, color: "", options: ["", ""] },
   ],
 });
 
@@ -1021,6 +1333,7 @@ const loadSurveyForEdit = async (name) => {
           text: q.question_text || "",
           type: q.question_type || "Rating Scale",
           required: !!q.required,
+          color: q.color || "",
           options:
             Array.isArray(q.options) && q.options.length
               ? [...q.options]
@@ -1059,10 +1372,11 @@ const loadPollForEdit = async (name) => {
       if (res.questions && res.questions.length > 0) {
         form.value.options = res.questions.map((q) => ({
           text: q.question_text || "",
+          color: q.color || "",
         }));
       }
       while (form.value.options.length < 2) {
-        form.value.options.push({ text: "" });
+        form.value.options.push({ text: "", color: "" });
       }
     } else {
       toast?.(res?.error || "Poll not found", "error");
@@ -1085,6 +1399,11 @@ const loadDocForEdit = () => {
 
 onMounted(() => {
   loadDocForEdit();
+  window.addEventListener("click", handleWindowClick);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("click", handleWindowClick);
 });
 
 watch(
@@ -1099,7 +1418,7 @@ const selectType = (t) => {
   step.value = 1;
 };
 
-const addOption = () => form.value.options.push({ text: "" });
+const addOption = () => form.value.options.push({ text: "", color: "" });
 const removeOption = (i) => form.value.options.splice(i, 1);
 
 const dragState = ref({ list: null, index: null });
@@ -1120,20 +1439,36 @@ const endDrag = () => {
   dragState.value = { list: null, index: null };
 };
 
-const addQuestion = () =>
-  form.value.questions.push({
+const addQuestion = (afterIndex = null) => {
+  const newQ = {
     text: "",
     type: "Rating Scale",
     required: false,
+    color: "",
     options: ["", ""],
-  });
-const addSection = () =>
-  form.value.questions.push({
+  };
+  if (typeof afterIndex === "number" && afterIndex >= 0) {
+    form.value.questions.splice(afterIndex + 1, 0, newQ);
+  } else {
+    form.value.questions.push(newQ);
+  }
+};
+
+const addSection = (afterIndex = null) => {
+  const newS = {
     text: "",
     type: "Section Heading",
     required: false,
+    color: "",
     options: [],
-  });
+  };
+  if (typeof afterIndex === "number" && afterIndex >= 0) {
+    form.value.questions.splice(afterIndex + 1, 0, newS);
+  } else {
+    form.value.questions.push(newS);
+  }
+};
+
 const removeQuestion = (i) => form.value.questions.splice(i, 1);
 
 const canProceedStep2 = computed(() => {
@@ -1158,7 +1493,7 @@ const submit = async () => {
           end_date: form.value.endDate || null,
           options: form.value.options
             .filter((o) => o.text.trim())
-            .map((o) => o.text),
+            .map((o) => ({ text: o.text, color: o.color || "" })),
         });
         if (result?.success || result?.name) {
           toast?.("Poll updated successfully!", "success");
@@ -1181,6 +1516,7 @@ const submit = async () => {
               question_text: q.text,
               question_type: q.type,
               required: q.required ? 1 : 0,
+              color: q.color || "",
               options: q.options?.filter(Boolean) || [],
               scale_min: q.scale_min || 1,
               scale_max: q.scale_max || 5,
@@ -1201,7 +1537,7 @@ const submit = async () => {
         end_date: form.value.endDate || null,
         options: form.value.options
           .filter((o) => o.text.trim())
-          .map((o) => o.text),
+          .map((o) => ({ text: o.text, color: o.color || "" })),
       });
       if (result?.name) {
         toast?.("Poll created successfully!", "success");
@@ -1221,6 +1557,7 @@ const submit = async () => {
             question_text: q.text,
             question_type: q.type,
             required: q.required ? 1 : 0,
+            color: q.color || "",
             options: q.options?.filter(Boolean) || [],
           })),
       });
@@ -1679,5 +2016,200 @@ const submit = async () => {
 .share-copy-btn.copied {
   background: var(--success);
   box-shadow: 0 0 14px rgba(34, 197, 94, 0.35);
+}
+
+/* ── Per-question inline "Add Question / Add Section" bar ── */
+.q-inline-insert-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--glass-border);
+}
+
+.q-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--r-sm);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+/* ── Question text-input + color picker row ── */
+.q-text-input-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+}
+
+.q-text-input-wrap .q-text {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Color picker toggle button */
+.q-color-picker-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.q-color-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--glass-border);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.q-color-toggle-btn.has-color {
+  border-color: var(--accent);
+}
+
+.q-color-toggle-btn.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.q-color-disc {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.q-color-btn-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Color popover */
+.q-color-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  min-width: 240px;
+  padding: 0.75rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.q-color-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+
+.btn-reset-color {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--r-sm);
+  transition: color 0.15s;
+}
+
+.btn-reset-color:hover {
+  color: var(--danger);
+}
+
+/* Color palette grid */
+.q-color-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.color-swatch-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.color-swatch-btn:hover {
+  transform: scale(1.18);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.color-swatch-btn.active {
+  border-color: white;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.color-swatch-btn.is-default {
+  background: var(--text-primary) !important;
+  border: 2px solid var(--glass-border);
+}
+
+/* Custom color row */
+.q-color-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.color-picker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.color-native-input {
+  width: 0;
+  height: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.color-preview-disc {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.color-hex-input {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+  font-size: 0.78rem;
+}
+
+/* Option color picker (same structure) */
+.opt-input-color-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.opt-color-picker-wrap {
+  position: relative;
+  flex-shrink: 0;
 }
 </style>

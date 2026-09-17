@@ -259,14 +259,14 @@
               v-if="q.question_type === 'Section Heading'"
               class="survey-section-heading"
             >
-              <h3>{{ q.question_text }}</h3>
+              <h3 :style="q.color ? { color: q.color } : {}">{{ q.question_text }}</h3>
             </div>
             <div
               v-else-if="q.question_type === 'Rating Scale'"
               class="card question-card ordered-rating-card"
               style="margin-bottom: 1rem"
             >
-              <div class="question-title">
+              <div class="question-title" :style="q.color ? { color: q.color } : {}">
                 {{ q.question_text }}
                 <span v-if="q.required" class="mandatory-star">*</span>
               </div>
@@ -299,7 +299,7 @@
               class="card question-card"
               style="margin-bottom: 1rem"
             >
-              <div class="question-title">
+              <div class="question-title" :style="q.color ? { color: q.color } : {}">
                 {{ q.question_text }}
                 <span v-if="q.required" class="mandatory-star">*</span>
               </div>
@@ -332,7 +332,7 @@
               class="card question-card"
               style="margin-bottom: 1rem"
             >
-              <div class="question-title">
+              <div class="question-title" :style="q.color ? { color: q.color } : {}">
                 {{ q.question_text }}
                 <span v-if="q.required" class="mandatory-star">*</span>
               </div>
@@ -424,7 +424,7 @@
                   :class="['', { 'row-rated': responses[q.name] }]"
                 >
                   <td>
-                    <div class="criteria-label">
+                    <div class="criteria-label" :style="q.color ? { color: q.color } : {}">
                       {{ q.question_text }}
                       <span v-if="q.required" class="mandatory-star">*</span>
                     </div>
@@ -462,7 +462,7 @@
           class="card question-card"
           style="margin-bottom: 1rem"
         >
-          <div class="question-title">
+          <div class="question-title" :style="q.color ? { color: q.color } : {}">
             {{ q.question_text }}
             <span v-if="q.required" class="mandatory-star">*</span>
           </div>
@@ -509,7 +509,7 @@
           class="card question-card"
           style="margin-bottom: 1rem"
         >
-          <div class="question-title">
+          <div class="question-title" :style="q.color ? { color: q.color } : {}">
             {{ q.question_text }}
             <span v-if="q.required" class="mandatory-star">*</span>
           </div>
@@ -638,8 +638,18 @@ const displayCompanyName = computed(() =>
     : auth.companyName || window.pollcast_company_name || "",
 );
 
+// Allow rich-text colour styles to survive sanitisation
+const richPurifyConfig = {
+  ALLOWED_TAGS: [
+    "p", "br", "strong", "b", "em", "i", "u", "s", "strike",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li", "blockquote", "a", "span", "div", "font",
+  ],
+  ALLOWED_ATTR: ["href", "target", "rel", "class", "style", "color"],
+};
+
 const sanitizedDescription = computed(() =>
-  DOMPurify.sanitize(survey.value?.description || ""),
+  DOMPurify.sanitize(survey.value?.description || "", richPurifyConfig),
 );
 
 // Responses: { [question_name]: value }

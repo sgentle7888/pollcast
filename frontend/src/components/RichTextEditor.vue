@@ -95,6 +95,22 @@
         >
           <s>S</s>
         </button>
+        <button
+          type="button"
+          class="toolbar-btn text-color-btn"
+          :class="{ active: showColorPopover }"
+          title="Text Color"
+          :disabled="disabled"
+          @mousedown.prevent="toggleColorPopover"
+        >
+          <span class="color-btn-inner">
+            <span class="color-letter">A</span>
+            <span
+              class="color-indicator-bar"
+              :style="{ backgroundColor: currentColor || 'var(--accent, #7c3aed)' }"
+            ></span>
+          </span>
+        </button>
       </div>
 
       <div class="toolbar-sep"></div>
@@ -326,6 +342,80 @@
       </div>
     </div>
 
+    <!-- Inline Text Color Popover -->
+    <div
+      v-if="showColorPopover"
+      class="color-popover card-glass animate-fade-in-up"
+      @mousedown.stop
+    >
+      <div class="color-popover-header">
+        <span class="color-popover-title">Text Color</span>
+        <button
+          type="button"
+          class="btn-reset-color"
+          title="Reset to default color"
+          @click="applyTextColor('')"
+        >
+          Reset
+        </button>
+      </div>
+
+      <div class="color-swatches-grid">
+        <button
+          v-for="c in colorPalette"
+          :key="c.value"
+          type="button"
+          class="color-swatch-btn"
+          :class="{ active: currentColor === c.value, 'is-default': !c.value }"
+          :style="{ backgroundColor: c.value || 'var(--text-primary)' }"
+          :title="c.label"
+          @click="applyTextColor(c.value)"
+        >
+          <svg
+            v-if="currentColor === c.value"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="color-custom-row">
+        <label class="color-picker-label" title="Pick custom color">
+          <input
+            type="color"
+            class="color-native-input"
+            v-model="customColorVal"
+            @input="applyTextColor(customColorVal)"
+          />
+          <span class="color-preview-disc" :style="{ backgroundColor: customColorVal }"></span>
+          <span class="text-xs font-medium">Custom</span>
+        </label>
+        <input
+          type="text"
+          class="form-control form-control-sm color-hex-input"
+          placeholder="#7c3aed"
+          v-model="customColorVal"
+          maxlength="9"
+          @keydown.enter.prevent="applyTextColor(customColorVal)"
+        />
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          @click="applyTextColor(customColorVal)"
+        >
+          Apply
+        </button>
+      </div>
+    </div>
+
     <!-- Editable Area -->
     <div
       ref="editorRef"
@@ -345,7 +435,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, nextTick } from "vue";
+import { ref, reactive, onMounted, onUnmounted, watch, nextTick } from "vue";
 import DOMPurify from "dompurify";
 
 const props = defineProps({
@@ -371,6 +461,27 @@ const isFocused = ref(false);
 const showLinkPopover = ref(false);
 const linkUrl = ref("");
 let savedSelectionRange = null;
+
+const showColorPopover = ref(false);
+const currentColor = ref("");
+const customColorVal = ref("#7c3aed");
+
+const colorPalette = [
+  { label: "Default (Inherit)", value: "" },
+  { label: "Dark Gray", value: "#1f2937" },
+  { label: "Slate", value: "#475569" },
+  { label: "Indigo", value: "#4f46e5" },
+  { label: "Violet", value: "#7c3aed" },
+  { label: "Blue", value: "#2563eb" },
+  { label: "Cyan", value: "#0891b2" },
+  { label: "Emerald", value: "#059669" },
+  { label: "Green", value: "#16a34a" },
+  { label: "Amber", value: "#d97706" },
+  { label: "Orange", value: "#ea580c" },
+  { label: "Rose", value: "#e11d48" },
+  { label: "Red", value: "#dc2626" },
+  { label: "Purple", value: "#9333ea" },
+];
 
 const activeStates = reactive({
   bold: false,
@@ -411,8 +522,9 @@ const purifyConfig = {
     "a",
     "span",
     "div",
+    "font",
   ],
-  ALLOWED_ATTR: ["href", "target", "rel", "class", "style"],
+  ALLOWED_ATTR: ["href", "target", "rel", "class", "style", "color"],
 };
 
 const sanitizeHtml = (html) => {
@@ -635,6 +747,67 @@ const applyLink = () => {
   onInput();
   closeLinkPopover();
 };
+
+const toggleColorPopover = () => {
+  if (showColorPopover.value) {
+    closeColorPopover();
+    return;
+  }
+  closeLinkPopover();
+  saveSelection();
+  showColorPopover.value = true;
+};
+
+const closeColorPopover = () => {
+  showColorPopover.value = false;
+};
+
+const applyTextColor = (color) => {
+  restoreSelection();
+  if (props.disabled || !editorRef.value) return;
+  editorRef.value.focus();
+  try {
+    document.execCommand("styleWithCSS", false, true);
+  } catch {
+    // fallback
+  }
+
+  if (!color) {
+    document.execCommand("removeFormat", false, null);
+    currentColor.value = "";
+  } else {
+    document.execCommand("foreColor", false, color);
+    currentColor.value = color;
+    customColorVal.value = color;
+  }
+  onInput();
+  closeColorPopover();
+};
+
+const handleDocumentClick = (e) => {
+  if (showColorPopover.value) {
+    const popover = document.querySelector(".color-popover");
+    const btn = document.querySelector(".text-color-btn");
+    if (popover && !popover.contains(e.target) && btn && !btn.contains(e.target)) {
+      closeColorPopover();
+    }
+  }
+  if (showLinkPopover.value) {
+    const popover = document.querySelector(".link-popover");
+    const btn = document.querySelector('button[title*="Link"]');
+    if (popover && !popover.contains(e.target) && btn && !btn.contains(e.target)) {
+      closeLinkPopover();
+    }
+  }
+};
+
+onMounted(() => {
+  document.addEventListener("mousedown", handleDocumentClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("mousedown", handleDocumentClick);
+});
 </script>
 
 <style scoped>
@@ -749,6 +922,156 @@ const applyLink = () => {
 
 .link-input {
   flex: 1;
+}
+
+/* Text Color Button */
+.text-color-btn {
+  padding: 0 4px;
+}
+
+.color-btn-inner {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.color-letter {
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.color-indicator-bar {
+  display: block;
+  width: 14px;
+  height: 3px;
+  border-radius: 1.5px;
+  margin-top: 1px;
+  transition: background-color 0.2s ease;
+}
+
+/* Color Popover */
+.color-popover {
+  position: absolute;
+  top: 44px;
+  left: 12px;
+  z-index: 30;
+  width: 260px;
+  padding: 0.75rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-focus);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.color-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+}
+
+.color-popover-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.btn-reset-color {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: var(--r-xs);
+  font-weight: 600;
+}
+
+.btn-reset-color:hover {
+  text-decoration: underline;
+}
+
+.color-swatches-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.color-swatch-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-surface);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.color-swatch-btn:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.color-swatch-btn.active {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.color-swatch-btn.is-default {
+  background: transparent !important;
+  border: 1.5px dashed var(--border-focus);
+}
+
+.color-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+}
+
+.color-picker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  position: relative;
+}
+
+.color-native-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.color-preview-disc {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  display: inline-block;
+}
+
+.color-hex-input {
+  width: 90px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  text-transform: uppercase;
 }
 
 /* Contenteditable Area */
