@@ -48,8 +48,10 @@ def get_user_info():
 
         return {
             'name': user_doc.name,
+            'user': user_doc.name,
             'email': user_doc.email,
             'full_name': user_doc.full_name,
+            'employee_name': user_doc.full_name,
             'user_image': user_doc.user_image,
             'roles': roles,
             'is_poll_manager': 'Poll Manager' in roles or 'System Manager' in roles,
@@ -1282,14 +1284,6 @@ def create_poll(title, description=None, start_date=None, end_date=None, options
 
         start_date = start_date if start_date and start_date != 'null' else None
         end_date = end_date if end_date and end_date != 'null' else None
-
-        poll = frappe.get_doc({
-            'doctype': 'Poll',
-            'title': title,
-            'description': description,
-            'status': 'Draft',
-            'start_date': start_date,
-            'end_date': end_date,
         poll_questions = []
         for opt in options:
             if isinstance(opt, dict):

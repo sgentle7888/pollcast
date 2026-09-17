@@ -69,8 +69,8 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       const result = await frappeCall("pollcast.api.get_user_info");
       if (result) {
-        user.value = result.user || "Guest";
-        employeeName.value = result.employee_name || result.user || "";
+        user.value = result.user || result.name || "Guest";
+        employeeName.value = result.employee_name || result.full_name || result.name || "";
         roles.value = result.roles || [];
       }
     } catch (e) {
