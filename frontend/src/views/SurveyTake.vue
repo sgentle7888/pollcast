@@ -282,7 +282,9 @@
             >
               <h3
                 :style="
-                  survey.section_text_color ? { color: survey.section_text_color } : {}"
+                  survey.section_text_color
+                    ? { color: survey.section_text_color }
+                    : {}
                 "
               >
                 {{ q.question_text }}
@@ -296,7 +298,9 @@
               <div
                 class="question-title"
                 :style="
-                  survey.field_label_color ? { color: survey.field_label_color } : {}"
+                  survey.field_label_color
+                    ? { color: survey.field_label_color }
+                    : {}
                 "
               >
                 {{ q.question_text }}
@@ -348,7 +352,9 @@
               <div
                 class="question-title"
                 :style="
-                  survey.field_label_color ? { color: survey.field_label_color } : {}"
+                  survey.field_label_color
+                    ? { color: survey.field_label_color }
+                    : {}
                 "
               >
                 {{ q.question_text }}
@@ -394,7 +400,9 @@
               <div
                 class="question-title"
                 :style="
-                  survey.field_label_color ? { color: survey.field_label_color } : {}"
+                  survey.field_label_color
+                    ? { color: survey.field_label_color }
+                    : {}
                 "
               >
                 {{ q.question_text }}
@@ -503,7 +511,9 @@
                     <div
                       class="criteria-label"
                       :style="
-                        survey.field_label_color ? { color: survey.field_label_color } : {}"
+                        survey.field_label_color
+                          ? { color: survey.field_label_color }
+                          : {}
                       "
                     >
                       {{ q.question_text }}
@@ -546,7 +556,9 @@
           <div
             class="question-title"
             :style="
-              survey.field_label_color ? { color: survey.field_label_color } : {}"
+              survey.field_label_color
+                ? { color: survey.field_label_color }
+                : {}
             "
           >
             {{ q.question_text }}
@@ -614,7 +626,9 @@
           <div
             class="question-title"
             :style="
-              survey.field_label_color ? { color: survey.field_label_color } : {}"
+              survey.field_label_color
+                ? { color: survey.field_label_color }
+                : {}
             "
           >
             {{ q.question_text }}
