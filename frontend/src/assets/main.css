@@ -2,7 +2,8 @@
    Pollcast — Premium Deep Space Design System v3
    ================================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+/* Inter is loaded non-blocking from main.js so a slow/blocked Google Fonts
+   connection can never stall the stylesheet or the page. */
 
 /* ----------------------------------------------------------------
    CSS Custom Properties — Dark (Default)

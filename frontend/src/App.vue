@@ -166,7 +166,7 @@
 
 <script setup>
 import { ref, computed, provide, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "./stores/auth.js";
 import AppSidebar from "./components/AppSidebar.vue";
 import AppSettingsModal from "./components/AppSettingsModal.vue";
@@ -174,6 +174,7 @@ import AppUpdatePrompt from "./components/AppUpdatePrompt.vue";
 
 const auth = useAuthStore();
 const route = useRoute();
+const router = useRouter();
 
 onMounted(() => auth.init());
 
@@ -190,11 +191,22 @@ const onCollapse = (val) => {
   sidebarCollapsed.value = val;
 };
 
-const pageTitle = computed(() => route.meta?.title || "Pollcast");
+// On first load / refresh, `route` is still the empty START_LOCATION while the
+// lazy-loaded view chunk downloads, so route.meta is {}. Resolve the meta
+// directly from the URL hash so guest detection is correct on the very first render.
+const currentMeta = computed(() => {
+  if (route.matched.length) return route.meta || {};
+  const path = window.location.hash.replace(/^#/, "") || "/";
+  return router.resolve(path).meta || {};
+});
+
+const pageTitle = computed(() => currentMeta.value.title || "Pollcast");
 
 // Guest mode: guest user on an explicitly guest-allowed route
 // → strip sidebar, header, and nav so only the voting/survey form is shown
-const isGuestMode = computed(() => auth.isGuest && !!route.meta?.allowGuest);
+const isGuestMode = computed(
+  () => auth.isGuest && !!currentMeta.value.allowGuest,
+);
 
 // Toast system
 const toasts = ref([]);
