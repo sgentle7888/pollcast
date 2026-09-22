@@ -222,25 +222,51 @@
               "
               class="choices-breakdown"
             >
+              <div class="choice-chart-toolbar">
+                <span class="text-xs text-muted">Display as</span>
+                <select
+                  v-model="choiceChartTypes[q.question_id]"
+                  class="choice-chart-select"
+                  @change="nextTick(() => renderChoiceChart(q))"
+                  :aria-label="`Chart type for ${q.question_text}`"
+                >
+                  <option value="breakdown">Breakdown</option>
+                  <option value="bar">Bar chart</option>
+                  <option value="pie">Pie chart</option>
+                  <option value="doughnut">Doughnut chart</option>
+                </select>
+              </div>
+
               <div
-                v-for="(count, opt) in q.option_counts"
-                :key="opt"
-                class="dist-row"
+                v-if="choiceChartTypes[q.question_id] !== 'breakdown'"
+                class="choice-chart-container"
               >
-                <span
-                  class="dist-score"
-                  style="min-width: 120px; font-weight: 500"
-                  >{{ opt }}</span
+                <canvas
+                  :ref="(element) => setChoiceChartRef(q.question_id, element)"
+                ></canvas>
+              </div>
+
+              <div v-if="choiceChartTypes[q.question_id] === 'breakdown'">
+                <div
+                  v-for="(count, opt) in q.option_counts"
+                  :key="opt"
+                  class="dist-row"
                 >
-                <div class="progress-track" style="flex: 1; height: 8px">
-                  <div
-                    class="progress-fill"
-                    :style="{ width: getOptionPct(q, count) + '%' }"
-                  ></div>
+                  <span
+                    class="dist-score"
+                    style="min-width: 120px; font-weight: 500"
+                    >{{ opt }}</span
+                  >
+                  <div class="progress-track" style="flex: 1; height: 8px">
+                    <div
+                      class="progress-fill"
+                      :style="{ width: getOptionPct(q, count) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="dist-count"
+                    >{{ count }} ({{ getOptionPct(q, count) }}%)</span
+                  >
                 </div>
-                <span class="dist-count"
-                  >{{ count }} ({{ getOptionPct(q, count) }}%)</span
-                >
               </div>
             </div>
 
@@ -290,7 +316,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, inject } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  nextTick,
+  inject,
+  onBeforeUnmount,
+} from "vue";
 import { useRoute } from "vue-router";
 import { frappeCall } from "../api/frappe.js";
 import Chart from "chart.js/auto";
@@ -313,8 +346,11 @@ const sanitizedDescription = computed(() =>
 
 const radarChartRef = ref(null);
 const barChartRef = ref(null);
+const choiceChartTypes = ref({});
+const choiceChartRefs = ref({});
 let radarChart = null;
 let barChart = null;
+const choiceCharts = new Map();
 
 const hasRatingQuestions = computed(() => {
   if (!analytics.value || !analytics.value.question_analytics) return false;
@@ -372,12 +408,105 @@ const getRatingColor = (score) => {
   return colors[score] || "var(--accent)";
 };
 
+const setChoiceChartRef = (questionId, element) => {
+  if (element) choiceChartRefs.value[questionId] = element;
+};
+
+const getChoiceChartColors = (count) => {
+  const colors = [
+    "#6366F1",
+    "#22C55E",
+    "#F59E0B",
+    "#EF4444",
+    "#06B6D4",
+    "#EC4899",
+    "#84CC16",
+    "#F97316",
+  ];
+  return Array.from(
+    { length: count },
+    (_, index) => colors[index % colors.length],
+  );
+};
+
+const renderChoiceChart = (question) => {
+  const chartType = choiceChartTypes.value[question.question_id] || "breakdown";
+  const existingChart = choiceCharts.get(question.question_id);
+  if (existingChart) {
+    existingChart.destroy();
+    choiceCharts.delete(question.question_id);
+  }
+  if (chartType === "breakdown") return;
+
+  const canvas = choiceChartRefs.value[question.question_id];
+  if (!canvas) return;
+
+  const entries = Object.entries(question.option_counts || {});
+  const labels = entries.map(([option]) => option);
+  const values = entries.map(([, count]) => count);
+  const colors = getChoiceChartColors(labels.length);
+  const chart = new Chart(canvas.getContext("2d"), {
+    type: chartType === "bar" ? "bar" : chartType,
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Responses",
+          data: values,
+          backgroundColor: colors,
+          borderColor: "rgba(255, 255, 255, 0.7)",
+          borderWidth: 1,
+          borderRadius: chartType === "bar" ? 5 : 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: chartType === "bar" ? "y" : "x",
+      plugins: {
+        legend: {
+          display: chartType !== "bar",
+          labels: { color: "#94A3B8" },
+        },
+      },
+      scales:
+        chartType === "bar"
+          ? {
+              x: {
+                beginAtZero: true,
+                ticks: { color: "#94A3B8", precision: 0 },
+                grid: { color: "rgba(255,255,255,0.04)" },
+              },
+              y: {
+                ticks: { color: "#94A3B8" },
+                grid: { display: false },
+              },
+            }
+          : {},
+    },
+  });
+  choiceCharts.set(question.question_id, chart);
+};
+
 const renderCharts = () => {
   if (!analytics.value || !analytics.value.question_analytics) return;
 
   const ratingQuestions = analytics.value.question_analytics.filter(
     (q) => q.question_type === "Rating Scale",
   );
+
+  analytics.value.question_analytics
+    .filter(
+      (q) =>
+        q.question_type === "Multiple Choice" || q.question_type === "Checkbox",
+    )
+    .forEach((question) => {
+      if (!choiceChartTypes.value[question.question_id]) {
+        choiceChartTypes.value[question.question_id] = "breakdown";
+      }
+    });
+
   if (ratingQuestions.length === 0) return;
 
   const labels = ratingQuestions.map((q) =>
@@ -466,6 +595,12 @@ const renderCharts = () => {
   }
 };
 
+onBeforeUnmount(() => {
+  radarChart?.destroy();
+  barChart?.destroy();
+  choiceCharts.forEach((chart) => chart.destroy());
+});
+
 const exportData = async (format) => {
   exporting.value = true;
   try {
@@ -531,6 +666,27 @@ const exportData = async (format) => {
   text-align: right;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+.choice-chart-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.choice-chart-select {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-sm);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.choice-chart-container {
+  height: 240px;
+  margin-bottom: 0.75rem;
 }
 
 .comment-bubble {
