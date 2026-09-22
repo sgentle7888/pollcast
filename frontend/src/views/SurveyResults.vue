@@ -503,7 +503,16 @@ const renderChoiceChart = (question) => {
       plugins: {
         legend: {
           display: chartType !== "bar",
-          labels: { color: "#94A3B8" },
+          position: "top",
+          align: "center",
+          labels: {
+            color: "#94A3B8",
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 12,
+            usePointStyle: true,
+            font: { size: 11 },
+          },
         },
         tooltip: {
           callbacks: {
@@ -730,7 +739,7 @@ const exportData = async (format) => {
 }
 
 .choice-chart-container {
-  height: 240px;
+  height: 280px;
   margin-bottom: 0.75rem;
 }
 
