@@ -505,11 +505,12 @@ const renderChoiceChart = (question) => {
           display: chartType !== "bar",
           position: "right",
           align: "center",
+          fullSize: false,
           labels: {
             color: "#94A3B8",
             boxWidth: 12,
             boxHeight: 12,
-            padding: 4,
+            padding: 0,
             usePointStyle: true,
             font: { size: 11 },
           },
