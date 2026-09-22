@@ -345,7 +345,7 @@ const sanitizedDescription = computed(() =>
 
 const radarChartRef = ref(null);
 const barChartRef = ref(null);
-const choiceChartType = ref("breakdown");
+const choiceChartType = ref("pie");
 const choiceChartRefs = ref({});
 let radarChart = null;
 let barChart = null;
@@ -448,16 +448,38 @@ const renderChoiceChart = (question) => {
   if (!canvas) return;
 
   const entries = Object.entries(question.option_counts || {});
-  const labels = entries.map(([option]) => {
-    const percentage = getOptionPct(question, question.option_counts[option]);
-    return chartType === "bar" ||
-      chartType === "pie" ||
-      chartType === "doughnut"
-      ? `${option} (${percentage}%)`
-      : option;
-  });
+  const labels = entries.map(([option]) => option);
   const values = entries.map(([, count]) => count);
   const colors = getChoiceChartColors(labels.length);
+  const percentageLabelsPlugin = {
+    id: "choicePercentageLabels",
+    afterDatasetsDraw(chartInstance) {
+      if (chartType !== "pie" && chartType !== "doughnut") return;
+
+      const context = chartInstance.ctx;
+      const meta = chartInstance.getDatasetMeta(0);
+      const total = values.reduce((sum, value) => sum + Number(value || 0), 0);
+      if (!total) return;
+
+      context.save();
+      context.fillStyle = "#FFFFFF";
+      context.font = "600 12px sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+
+      meta.data.forEach((arc, index) => {
+        const percentage = Math.round(
+          (Number(values[index] || 0) / total) * 100,
+        );
+        if (!percentage) return;
+        const { x, y } = arc.getCenterPoint();
+        context.fillText(`${percentage}%`, x, y);
+      });
+
+      context.restore();
+    },
+  };
+
   const chart = new Chart(canvas.getContext("2d"), {
     type: chartType === "bar" ? "bar" : chartType,
     data: {
@@ -473,6 +495,7 @@ const renderChoiceChart = (question) => {
         },
       ],
     },
+    plugins: [percentageLabelsPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -526,6 +549,8 @@ const renderCharts = () => {
   const ratingQuestions = analytics.value.question_analytics.filter(
     (q) => q.question_type === "Rating Scale",
   );
+
+  renderAllChoiceCharts();
 
   if (ratingQuestions.length === 0) return;
 
