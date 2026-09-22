@@ -308,7 +308,7 @@
               </div>
               <div class="ordered-rating-options">
                 <label
-                  v-for="score in [1, 2, 3, 4, 5]"
+                  v-for="score in getRatingScores(q)"
                   :key="score"
                   :style="
                     survey.field_content_color
@@ -483,20 +483,12 @@
               <thead>
                 <tr>
                   <th>Criteria</th>
-                  <th class="score-col-header">
-                    1<br /><span class="score-label">Very Poor</span>
-                  </th>
-                  <th class="score-col-header">
-                    2<br /><span class="score-label">Poor</span>
-                  </th>
-                  <th class="score-col-header">
-                    3<br /><span class="score-label">Average</span>
-                  </th>
-                  <th class="score-col-header">
-                    4<br /><span class="score-label">Good</span>
-                  </th>
-                  <th class="score-col-header">
-                    5<br /><span class="score-label">Excellent</span>
+                  <th
+                    v-for="score in getRatingScores(ratingQuestions[0])"
+                    :key="score"
+                    class="score-col-header"
+                  >
+                    {{ score }}
                   </th>
                   <th class="na-col-header">N/A</th>
                 </tr>
@@ -520,7 +512,7 @@
                       <span v-if="q.required" class="mandatory-star">*</span>
                     </div>
                   </td>
-                  <td v-for="score in [1, 2, 3, 4, 5]" :key="score">
+                  <td v-for="score in getRatingScores(q)" :key="score">
                     <input
                       type="radio"
                       class="rating-radio"
@@ -937,6 +929,15 @@ const getRatingColor = (score) => {
     5: "#22C55E",
   };
   return colors[score] || "var(--accent)";
+};
+
+const getRatingScores = (question) => {
+  const minimum = Number(question?.scale_min || 1);
+  const maximum = Number(question?.scale_max || 5);
+  return Array.from(
+    { length: Math.max(0, maximum - minimum + 1) },
+    (_, index) => minimum + index,
+  );
 };
 
 const submitSurvey = async () => {

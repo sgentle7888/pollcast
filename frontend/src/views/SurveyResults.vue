@@ -147,6 +147,20 @@
         <h3 class="section-title" style="margin-bottom: 1rem">
           Detailed Question Analytics
         </h3>
+        <div class="choice-chart-toolbar" v-if="hasChoiceQuestions">
+          <span class="text-xs text-muted">Choice question display</span>
+          <select
+            v-model="choiceChartType"
+            class="choice-chart-select"
+            @change="nextTick(renderAllChoiceCharts)"
+            aria-label="Chart type for choice questions"
+          >
+            <option value="breakdown">Percentage breakdown</option>
+            <option value="bar">Bar chart</option>
+            <option value="pie">Pie chart</option>
+            <option value="doughnut">Doughnut chart</option>
+          </select>
+        </div>
         <div class="question-analytics-list">
           <div
             v-for="(q, index) in analytics.question_analytics"
@@ -222,23 +236,8 @@
               "
               class="choices-breakdown"
             >
-              <div class="choice-chart-toolbar">
-                <span class="text-xs text-muted">Display as</span>
-                <select
-                  v-model="choiceChartTypes[q.question_id]"
-                  class="choice-chart-select"
-                  @change="nextTick(() => renderChoiceChart(q))"
-                  :aria-label="`Chart type for ${q.question_text}`"
-                >
-                  <option value="breakdown">Breakdown</option>
-                  <option value="bar">Bar chart</option>
-                  <option value="pie">Pie chart</option>
-                  <option value="doughnut">Doughnut chart</option>
-                </select>
-              </div>
-
               <div
-                v-if="choiceChartTypes[q.question_id] !== 'breakdown'"
+                v-if="choiceChartType !== 'breakdown'"
                 class="choice-chart-container"
               >
                 <canvas
@@ -246,7 +245,7 @@
                 ></canvas>
               </div>
 
-              <div v-if="choiceChartTypes[q.question_id] === 'breakdown'">
+              <div v-if="choiceChartType === 'breakdown'">
                 <div
                   v-for="(count, opt) in q.option_counts"
                   :key="opt"
@@ -346,7 +345,7 @@ const sanitizedDescription = computed(() =>
 
 const radarChartRef = ref(null);
 const barChartRef = ref(null);
-const choiceChartTypes = ref({});
+const choiceChartType = ref("breakdown");
 const choiceChartRefs = ref({});
 let radarChart = null;
 let barChart = null;
@@ -358,6 +357,13 @@ const hasRatingQuestions = computed(() => {
     (q) => q.question_type === "Rating Scale",
   );
 });
+
+const hasChoiceQuestions = computed(() =>
+  analytics.value?.question_analytics?.some(
+    (q) =>
+      q.question_type === "Multiple Choice" || q.question_type === "Checkbox",
+  ),
+);
 
 onMounted(async () => {
   try {
@@ -430,7 +436,7 @@ const getChoiceChartColors = (count) => {
 };
 
 const renderChoiceChart = (question) => {
-  const chartType = choiceChartTypes.value[question.question_id] || "breakdown";
+  const chartType = choiceChartType.value;
   const existingChart = choiceCharts.get(question.question_id);
   if (existingChart) {
     existingChart.destroy();
@@ -442,7 +448,14 @@ const renderChoiceChart = (question) => {
   if (!canvas) return;
 
   const entries = Object.entries(question.option_counts || {});
-  const labels = entries.map(([option]) => option);
+  const labels = entries.map(([option]) => {
+    const percentage = getOptionPct(question, question.option_counts[option]);
+    return chartType === "bar" ||
+      chartType === "pie" ||
+      chartType === "doughnut"
+      ? `${option} (${percentage}%)`
+      : option;
+  });
   const values = entries.map(([, count]) => count);
   const colors = getChoiceChartColors(labels.length);
   const chart = new Chart(canvas.getContext("2d"), {
@@ -469,6 +482,14 @@ const renderChoiceChart = (question) => {
           display: chartType !== "bar",
           labels: { color: "#94A3B8" },
         },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const count = context.raw || 0;
+              return `${count} responses (${getOptionPct(question, count)}%)`;
+            },
+          },
+        },
       },
       scales:
         chartType === "bar"
@@ -489,23 +510,22 @@ const renderChoiceChart = (question) => {
   choiceCharts.set(question.question_id, chart);
 };
 
+const renderAllChoiceCharts = () => {
+  if (!analytics.value) return;
+  analytics.value.question_analytics
+    .filter(
+      (q) =>
+        q.question_type === "Multiple Choice" || q.question_type === "Checkbox",
+    )
+    .forEach(renderChoiceChart);
+};
+
 const renderCharts = () => {
   if (!analytics.value || !analytics.value.question_analytics) return;
 
   const ratingQuestions = analytics.value.question_analytics.filter(
     (q) => q.question_type === "Rating Scale",
   );
-
-  analytics.value.question_analytics
-    .filter(
-      (q) =>
-        q.question_type === "Multiple Choice" || q.question_type === "Checkbox",
-    )
-    .forEach((question) => {
-      if (!choiceChartTypes.value[question.question_id]) {
-        choiceChartTypes.value[question.question_id] = "breakdown";
-      }
-    });
 
   if (ratingQuestions.length === 0) return;
 
