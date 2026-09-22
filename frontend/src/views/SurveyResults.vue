@@ -499,6 +499,7 @@ const renderChoiceChart = (question) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      radius: "92%",
       indexAxis: chartType === "bar" ? "y" : "x",
       plugins: {
         legend: {
@@ -509,7 +510,7 @@ const renderChoiceChart = (question) => {
             color: "#94A3B8",
             boxWidth: 12,
             boxHeight: 12,
-            padding: 10,
+            padding: 4,
             usePointStyle: true,
             font: { size: 11 },
           },
@@ -739,7 +740,7 @@ const exportData = async (format) => {
 }
 
 .choice-chart-container {
-  height: 240px;
+  height: 280px;
   margin-bottom: 0.75rem;
 }
 
