@@ -65,6 +65,7 @@
         "
       >
         <RouterLink
+          v-if="!auth.isGuest"
           :to="'/surveys/' + survey.name + '/results'"
           class="btn btn-primary"
         >
@@ -84,6 +85,9 @@
           </svg>
           View Results
         </RouterLink>
+        <p v-else class="text-secondary text-sm survey-results-guest-note">
+          Results are available to signed-in users.
+        </p>
         <RouterLink v-if="!auth.isGuest" to="/surveys" class="btn btn-secondary"
           >Back to Surveys</RouterLink
         >
