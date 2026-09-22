@@ -238,11 +238,36 @@
             >
               <div
                 v-if="choiceChartType !== 'breakdown'"
-                class="choice-chart-container"
+                class="choice-chart-row"
               >
-                <canvas
-                  :ref="(element) => setChoiceChartRef(q.question_id, element)"
-                ></canvas>
+                <div class="choice-chart-container">
+                  <canvas
+                    :ref="
+                      (element) => setChoiceChartRef(q.question_id, element)
+                    "
+                  ></canvas>
+                </div>
+
+                <!-- Custom HTML legend: lets us keep rows tight while still
+                     giving the legend column room to breathe next to the chart. -->
+                <ul
+                  v-if="
+                    choiceChartType === 'pie' || choiceChartType === 'doughnut'
+                  "
+                  class="chart-legend"
+                >
+                  <li
+                    v-for="item in getChoiceLegend(q)"
+                    :key="item.label"
+                    class="chart-legend-item"
+                  >
+                    <span
+                      class="chart-legend-dot"
+                      :style="{ background: item.color }"
+                    ></span>
+                    <span class="chart-legend-label">{{ item.label }}</span>
+                  </li>
+                </ul>
               </div>
 
               <div v-if="choiceChartType === 'breakdown'">
@@ -418,6 +443,12 @@ const setChoiceChartRef = (questionId, element) => {
   if (element) choiceChartRefs.value[questionId] = element;
 };
 
+const getChoiceLegend = (question) => {
+  const entries = Object.entries(question.option_counts || {});
+  const colors = getChoiceChartColors(entries.length);
+  return entries.map(([label], index) => ({ label, color: colors[index] }));
+};
+
 const getChoiceChartColors = (count) => {
   const colors = [
     "#6366F1",
@@ -501,21 +532,10 @@ const renderChoiceChart = (question) => {
       maintainAspectRatio: false,
       indexAxis: chartType === "bar" ? "y" : "x",
       plugins: {
-        legend: {
-          display: chartType !== "bar",
-          position: "right",
-          align: "center",
-          fullSize: false,
-          labels: {
-            color: "#94A3B8",
-            boxWidth: 12,
-            boxHeight: 12,
-            // Space between chart & legend, and between legend rows.
-            padding: 18,
-            usePointStyle: true,
-            font: { size: 11 },
-          },
-        },
+        // Pie/doughnut now use the custom HTML legend in the template
+        // (independent control of row spacing vs. chart gap). Bar charts
+        // never showed a legend either way.
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: (context) => {
@@ -740,9 +760,48 @@ const exportData = async (format) => {
   font-size: 0.8125rem;
 }
 
+.choice-chart-row {
+  display: flex;
+  align-items: center;
+  /* Gap between the chart and the legend column — tune independently
+     of the row spacing below. */
+  gap: 2rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .choice-chart-container {
   height: 200px;
-  margin-bottom: 0.75rem;
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  /* Vertical space between legend rows — set this as tight as you like. */
+  gap: 0.35rem;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chart-legend-label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary, #94a3b8);
 }
 
 .comment-bubble {
