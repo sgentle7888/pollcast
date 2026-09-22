@@ -499,7 +499,6 @@ const renderChoiceChart = (question) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      radius: "92%",
       indexAxis: chartType === "bar" ? "y" : "x",
       plugins: {
         legend: {
@@ -740,7 +739,7 @@ const exportData = async (format) => {
 }
 
 .choice-chart-container {
-  height: 280px;
+  height: 200px;
   margin-bottom: 0.75rem;
 }
 
