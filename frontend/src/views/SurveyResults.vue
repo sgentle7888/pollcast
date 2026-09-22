@@ -510,7 +510,8 @@ const renderChoiceChart = (question) => {
             color: "#94A3B8",
             boxWidth: 12,
             boxHeight: 12,
-            padding: 0,
+            // Space between chart & legend, and between legend rows.
+            padding: 18,
             usePointStyle: true,
             font: { size: 11 },
           },
