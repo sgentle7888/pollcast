@@ -865,7 +865,7 @@ def get_survey_analytics(survey_id):
                 # Text analysis
                 text_responses = [r for r in responses_for_question if r]
                 if text_responses:
-                    question_data['text_responses'] = text_responses[:10]  # Show first 10
+                    question_data['text_responses'] = text_responses  # All text responses
                     question_data['word_frequency'] = analyze_text_frequency(text_responses)
                     question_data['sentiment_summary'] = analyze_sentiment(text_responses)
 

@@ -152,7 +152,7 @@ class Survey(Document):
                     'question': question.question_text,
                     'type': question.question_type,
                     'total_responses': len(responses_for_question),
-                    'responses': responses_for_question[:10]  # Show first 10 text responses
+                    'responses': responses_for_question  # All text responses
                 })
         
         return {

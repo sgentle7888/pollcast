@@ -324,13 +324,27 @@
               </div>
               <div class="comments-list">
                 <div
-                  v-for="(comment, cidx) in q.text_responses"
+                  v-for="(comment, cidx) in getVisibleTextResponses(q)"
                   :key="cidx"
                   class="comment-bubble"
                 >
                   {{ comment }}
                 </div>
               </div>
+              <button
+                v-if="
+                  (q.text_responses?.length || 0) > TEXT_RESPONSES_PAGE_SIZE
+                "
+                type="button"
+                class="btn btn-secondary btn-sm show-more-btn"
+                @click="toggleTextResponses(q.question_id)"
+              >
+                {{
+                  isTextResponsesExpanded(q.question_id)
+                    ? "Show less"
+                    : `Show all ${q.text_responses.length} responses`
+                }}
+              </button>
             </div>
           </div>
         </div>
@@ -372,6 +386,28 @@ const radarChartRef = ref(null);
 const barChartRef = ref(null);
 const choiceChartType = ref("pie");
 const choiceChartRefs = ref({});
+
+// Text-answer questions can have hundreds of responses; only show a first
+// page of each and let the user expand it, rather than rendering everything.
+const TEXT_RESPONSES_PAGE_SIZE = 10;
+const expandedTextResponses = ref({});
+
+const isTextResponsesExpanded = (questionId) =>
+  !!expandedTextResponses.value[questionId];
+
+const toggleTextResponses = (questionId) => {
+  expandedTextResponses.value = {
+    ...expandedTextResponses.value,
+    [questionId]: !expandedTextResponses.value[questionId],
+  };
+};
+
+const getVisibleTextResponses = (q) => {
+  const all = q.text_responses || [];
+  return isTextResponsesExpanded(q.question_id)
+    ? all
+    : all.slice(0, TEXT_RESPONSES_PAGE_SIZE);
+};
 let radarChart = null;
 let barChart = null;
 const choiceCharts = new Map();
@@ -816,5 +852,10 @@ const exportData = async (format) => {
 }
 .comment-bubble:last-child {
   margin-bottom: 0;
+}
+
+.show-more-btn {
+  display: block;
+  margin: 0.5rem auto 0;
 }
 </style>
