@@ -16,17 +16,34 @@
         ></div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" @click="printPage">
-          Export PDF
-        </button>
-        <button
-          class="btn btn-secondary btn-sm"
-          @click="exportData('csv')"
-          :disabled="exporting"
-        >
-          <span v-if="exporting" class="spinner spinner-sm"></span>
-          <span v-else>Export CSV</span>
-        </button>
+        <!-- Analytics tab actions -->
+        <template v-if="activeTab === 'analytics'">
+          <button class="btn btn-secondary btn-sm" @click="printPage">
+            Export PDF
+          </button>
+          <button
+            class="btn btn-secondary btn-sm"
+            @click="exportData('csv')"
+            :disabled="exporting"
+          >
+            <span v-if="exporting" class="spinner spinner-sm"></span>
+            <span v-else>Export CSV</span>
+          </button>
+        </template>
+        <!-- Respondents tab actions -->
+        <template v-if="activeTab === 'respondents'">
+          <button class="btn btn-secondary btn-sm" @click="printRespondents">
+            🖨️ Export PDF
+          </button>
+          <button
+            class="btn btn-primary btn-sm"
+            @click="exportRespondentsExcel"
+            :disabled="exportingRespondents"
+          >
+            <span v-if="exportingRespondents" class="spinner spinner-sm"></span>
+            <span v-else>📥 Export Excel</span>
+          </button>
+        </template>
         <RouterLink
           v-if="survey.status === 'Active'"
           :to="'/surveys/' + survey.name"
@@ -68,8 +85,23 @@
       </div>
     </div>
 
+    <!-- Tab navigation -->
+    <div v-else class="results-tabs-wrapper">
+      <div class="results-tab-bar">
+        <button
+          class="results-tab-btn"
+          :class="{ active: activeTab === 'analytics' }"
+          @click="activeTab = 'analytics'"
+        >📊 Analytics Overview</button>
+        <button
+          class="results-tab-btn"
+          :class="{ active: activeTab === 'respondents' }"
+          @click="switchToRespondents"
+        >👤 Individual Respondents</button>
+      </div>
+
     <!-- Main Results Grid -->
-    <div v-else class="results-grid">
+    <div v-show="activeTab === 'analytics'" class="results-grid">
       <!-- KPIs -->
       <div class="kpi-row kpi-grid" style="margin-bottom: 1.5rem">
         <div class="stat-card card animate-fade-in-up stagger-1">
@@ -350,6 +382,64 @@
         </div>
       </div>
     </div>
+    <!-- END analytics tab -->
+
+    <!-- ===== RESPONDENT VIEW TAB ===== -->
+    <div v-show="activeTab === 'respondents'" class="respondents-tab" id="respondents-print-area">
+      <div v-if="loadingRespondents" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading respondent data…</p>
+      </div>
+      <div v-else-if="respondentsError" class="empty-state card">
+        <div class="empty-icon">⚠️</div>
+        <p class="text-secondary">{{ respondentsError }}</p>
+      </div>
+      <div v-else-if="!respondentsData || respondentsData.respondents.length === 0" class="empty-state card">
+        <div class="empty-icon">👤</div>
+        <h3>No Respondents Yet</h3>
+        <p class="text-secondary">Responses will appear here once participants submit the survey.</p>
+      </div>
+      <div v-else class="respondents-content">
+        <p class="respondents-meta">
+          Showing <strong>{{ respondentsData.respondents.length }}</strong> respondent(s) ·
+          <strong>{{ respondentsData.questions.length }}</strong> question(s)
+        </p>
+
+        <!-- Each respondent as a card -->
+        <div
+          v-for="resp in respondentsData.respondents"
+          :key="resp.respondent_number"
+          class="respondent-card card-elevated"
+        >
+          <!-- Card header -->
+          <div class="respondent-card-header">
+            <span class="respondent-badge"># {{ resp.respondent_number }}</span>
+            <span class="respondent-time">🕐 {{ resp.submitted_at }}</span>
+            <span class="respondent-ip">🌐 {{ resp.participant_ip }}</span>
+          </div>
+
+          <!-- Answers grid -->
+          <div class="respondent-answers">
+            <div
+              v-for="q in respondentsData.questions"
+              :key="q.id"
+              class="respondent-answer-row"
+            >
+              <div class="respondent-q-label">{{ q.text }}</div>
+              <div
+                class="respondent-q-answer"
+                :class="{ 'no-answer': !resp.answers[q.id] }"
+              >
+                {{ resp.answers[q.id] || '— (no answer)' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END respondents tab -->
+
+    </div><!-- close results-tabs-wrapper -->
   </div>
 </template>
 
@@ -369,6 +459,85 @@ import DOMPurify from "dompurify";
 
 const route = useRoute();
 const toast = inject("toast");
+
+// ========== Tab state ==========
+const activeTab = ref('analytics');
+
+// ========== Respondent view state ==========
+const respondentsData = ref(null);
+const loadingRespondents = ref(false);
+const exportingRespondents = ref(false);
+const respondentsError = ref(null);
+
+const switchToRespondents = async () => {
+  activeTab.value = 'respondents';
+  if (respondentsData.value !== null) return; // already loaded
+  loadingRespondents.value = true;
+  respondentsError.value = null;
+  try {
+    const result = await frappeCall('pollcast.api.get_survey_respondents', {
+      survey_id: route.params.name,
+    });
+    if (result && result.error) {
+      respondentsError.value = result.error;
+    } else {
+      respondentsData.value = result;
+    }
+  } catch (e) {
+    respondentsError.value = e.message || 'Failed to load respondent data';
+  } finally {
+    loadingRespondents.value = false;
+  }
+};
+
+const printRespondents = () => {
+  // Temporarily hide the analytics tab, print, then restore
+  const analyticsEl = document.querySelector('.results-grid');
+  const tabBar = document.querySelector('.results-tab-bar');
+  const headerActions = document.querySelector('.header-actions');
+  if (analyticsEl) analyticsEl.style.display = 'none';
+  if (tabBar) tabBar.style.display = 'none';
+  if (headerActions) headerActions.style.display = 'none';
+  window.print();
+  if (analyticsEl) analyticsEl.style.display = '';
+  if (tabBar) tabBar.style.display = '';
+  if (headerActions) headerActions.style.display = '';
+};
+
+const exportRespondentsExcel = async () => {
+  exportingRespondents.value = true;
+  try {
+    const result = await frappeCall('pollcast.api.export_survey_respondents', {
+      survey_id: route.params.name,
+      export_format: 'excel',
+    });
+    if (result && result.error) {
+      toast?.('Export Failed: ' + result.error, 'error');
+      return;
+    }
+    if (result && result.content) {
+      const byteChars = atob(result.content);
+      const byteNumbers = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNumbers[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteNumbers], { type: result.mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.filename || 'respondents.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast?.('Excel downloaded successfully!', 'success');
+    }
+  } catch (e) {
+    toast?.('Export Failed: ' + e.message, 'error');
+  } finally {
+    exportingRespondents.value = false;
+  }
+};
 
 const printPage = () => {
   window.print();
@@ -857,5 +1026,151 @@ const exportData = async (format) => {
 .show-more-btn {
   display: block;
   margin: 0.5rem auto 0;
+}
+
+/* ===== Tabs ===== */
+.results-tabs-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.results-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--glass-border);
+  margin-bottom: 1.5rem;
+}
+
+.results-tab-btn {
+  padding: 0.6rem 1.4rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.results-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--glass-bg);
+}
+.results-tab-btn.active {
+  color: var(--accent, #6366f1);
+  border-bottom-color: var(--accent, #6366f1);
+  font-weight: 600;
+}
+
+/* ===== Respondent view ===== */
+.respondents-tab {
+  display: flex;
+  flex-direction: column;
+}
+
+.respondents-meta {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.respondents-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.respondent-card {
+  border-radius: var(--r-md);
+  padding: 1.25rem;
+  border: 1px solid var(--glass-border);
+  background: var(--card-bg, var(--glass-bg));
+  break-inside: avoid;
+}
+
+.respondent-card-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.respondent-badge {
+  background: var(--accent, #6366f1);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+}
+
+.respondent-time {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.respondent-ip {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.respondent-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.respondent-answer-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 35%) 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--glass-border);
+}
+.respondent-answer-row:last-child {
+  border-bottom: none;
+}
+
+.respondent-q-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.respondent-q-answer {
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.respondent-q-answer.no-answer {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ===== Print styles for respondents ===== */
+@media print {
+  .results-tab-bar,
+  .header-actions,
+  .page-header .btn,
+  .results-grid {
+    display: none !important;
+  }
+  .respondents-tab {
+    display: flex !important;
+  }
+  .respondent-card {
+    page-break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #d1d5db;
+  }
 }
 </style>

@@ -1089,6 +1089,273 @@ def export_analytics(options=None, format='csv'):
         return {'error': str(e)}
 
 
+@frappe.whitelist()
+def get_survey_respondents(survey_id):
+    """Return each respondent's answers as a separate record.
+
+    Respondents are identified by grouping Survey Response rows that share the
+    same participant_ip AND were submitted within a 5-minute window of each
+    other.  If two rows differ by more than 5 minutes (even from the same IP)
+    they are treated as separate respondents.
+
+    Returns:
+        {
+            "questions": [{"id": ..., "text": ..., "type": ...}, ...],
+            "respondents": [
+                {
+                    "respondent_number": 1,
+                    "submitted_at": "2026-09-30 12:00:00",
+                    "participant_ip": "...",
+                    "answers": {"<question_id>": "<answer>", ...}
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        if not survey_id:
+            return {'error': 'Survey ID is required'}
+
+        survey = frappe.get_doc('Survey', survey_id)
+
+        # Fetch all responses ordered by IP then creation time
+        raw = frappe.db.sql("""
+            SELECT
+                sr.name,
+                sr.survey_question,
+                sr.response_value,
+                sr.participant_ip,
+                sr.creation
+            FROM `tabSurvey Response` sr
+            WHERE sr.survey = %(survey)s
+            ORDER BY sr.participant_ip, sr.creation
+        """, {'survey': survey_id}, as_dict=True)
+
+        if not raw:
+            return {'questions': [], 'respondents': []}
+
+        # Build ordered question list (skip Section Headings)
+        questions = []
+        for q in survey.questions:
+            if q.question_type == 'Section Heading':
+                continue
+            questions.append({
+                'id': q.name,
+                'text': q.question_text,
+                'type': q.question_type,
+            })
+        q_id_set = {q['id'] for q in questions}
+
+        # Group rows into respondent sessions
+        # A new session starts when the IP changes OR there's a >5-min gap
+        SESSION_GAP = timedelta(minutes=5)
+
+        sessions = []          # list of lists of raw rows
+        current_session = []
+
+        for row in raw:
+            if not current_session:
+                current_session.append(row)
+                continue
+
+            prev = current_session[-1]
+            # Parse datetimes
+            def _dt(val):
+                if isinstance(val, datetime):
+                    return val
+                return datetime.fromisoformat(str(val).replace('Z', '+00:00').replace(' ', 'T'))
+
+            same_ip = (row.participant_ip or '') == (prev.participant_ip or '')
+            gap = _dt(row.creation) - _dt(prev.creation)
+
+            if same_ip and gap <= SESSION_GAP:
+                current_session.append(row)
+            else:
+                sessions.append(current_session)
+                current_session = [row]
+
+        if current_session:
+            sessions.append(current_session)
+
+        # Build respondent records
+        respondents = []
+        for idx, session_rows in enumerate(sessions, start=1):
+            answers = {}
+            for row in session_rows:
+                if row.survey_question not in q_id_set:
+                    continue
+                existing = answers.get(row.survey_question)
+                if existing:
+                    # Checkbox: multiple rows → comma-separated
+                    answers[row.survey_question] = existing + ', ' + str(row.response_value)
+                else:
+                    answers[row.survey_question] = str(row.response_value)
+
+            submitted_at = session_rows[0].creation
+            if hasattr(submitted_at, 'strftime'):
+                submitted_at = submitted_at.strftime('%Y-%m-%d %H:%M:%S')
+
+            respondents.append({
+                'respondent_number': idx,
+                'submitted_at': str(submitted_at),
+                'participant_ip': session_rows[0].participant_ip or 'N/A',
+                'answers': answers,
+            })
+
+        return {
+            'questions': questions,
+            'respondents': respondents,
+        }
+
+    except Exception as e:
+        frappe.log_error(f"get_survey_respondents error: {str(e)}\n{frappe.get_traceback()}")
+        return {'error': str(e)}
+
+
+@frappe.whitelist()
+def export_survey_respondents(survey_id, export_format='excel'):
+    """Export the per-respondent view as an Excel (.xlsx) file.
+
+    Returns a JSON-safe object with base64-encoded file content so the
+    Vue frontend can trigger a browser download.
+    """
+    try:
+        data = get_survey_respondents(survey_id)
+        if data.get('error'):
+            return data
+
+        questions = data['questions']
+        respondents = data['respondents']
+
+        survey = frappe.get_doc('Survey', survey_id)
+        survey_title = survey.title or survey_id
+
+        if export_format == 'excel':
+            try:
+                import openpyxl
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                from openpyxl.utils import get_column_letter
+            except ImportError:
+                return {'error': 'openpyxl is not installed. Run: bench pip install openpyxl'}
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = 'Respondents'
+
+            # ---- Styles ----
+            header_font = Font(bold=True, color='FFFFFF', size=11)
+            header_fill = PatternFill('solid', fgColor='4F46E5')  # indigo
+            sub_header_font = Font(bold=True, size=10)
+            sub_header_fill = PatternFill('solid', fgColor='E0E7FF')
+            center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            wrap_align = Alignment(vertical='top', wrap_text=True)
+            thin_border = Border(
+                left=Side(style='thin', color='D1D5DB'),
+                right=Side(style='thin', color='D1D5DB'),
+                top=Side(style='thin', color='D1D5DB'),
+                bottom=Side(style='thin', color='D1D5DB'),
+            )
+
+            # ---- Row 1: Survey title banner ----
+            total_cols = 3 + len(questions)   # #, Submitted At, IP + questions
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max(total_cols, 1))
+            title_cell = ws.cell(row=1, column=1, value=f'Survey Respondents — {survey_title}')
+            title_cell.font = Font(bold=True, size=13, color='FFFFFF')
+            title_cell.fill = PatternFill('solid', fgColor='312E81')
+            title_cell.alignment = center_align
+            ws.row_dimensions[1].height = 28
+
+            # ---- Row 2: Column headers ----
+            headers = ['#', 'Submitted At', 'Participant IP'] + [q['text'] for q in questions]
+            for col_idx, header in enumerate(headers, start=1):
+                cell = ws.cell(row=2, column=col_idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_align
+                cell.border = thin_border
+            ws.row_dimensions[2].height = 36
+
+            # ---- Data rows ----
+            for r_idx, respondent in enumerate(respondents, start=3):
+                row_data = [
+                    respondent['respondent_number'],
+                    respondent['submitted_at'],
+                    respondent['participant_ip'],
+                ] + [respondent['answers'].get(q['id'], '') for q in questions]
+
+                alt_fill = PatternFill('solid', fgColor='F5F3FF') if r_idx % 2 == 0 else None
+
+                for col_idx, value in enumerate(row_data, start=1):
+                    cell = ws.cell(row=r_idx, column=col_idx, value=value)
+                    cell.alignment = wrap_align
+                    cell.border = thin_border
+                    if alt_fill:
+                        cell.fill = alt_fill
+
+                ws.row_dimensions[r_idx].height = 18
+
+            # ---- Column widths ----
+            ws.column_dimensions['A'].width = 6   # #
+            ws.column_dimensions['B'].width = 20  # Submitted At
+            ws.column_dimensions['C'].width = 18  # IP
+            for i in range(len(questions)):
+                col_letter = get_column_letter(4 + i)
+                ws.column_dimensions[col_letter].width = 30
+
+            # ---- Freeze header rows ----
+            ws.freeze_panes = 'A3'
+
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            encoded = base64.b64encode(buf.read()).decode('ascii')
+
+            safe_title = ''.join(c if c.isalnum() or c in '-_ ' else '_' for c in survey_title)
+            filename = f"respondents_{safe_title}_{now().split()[0]}.xlsx"
+
+            return {
+                'success': True,
+                'filename': filename,
+                'content': encoded,
+                'mime': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            }
+
+        else:
+            # CSV fallback
+            import csv
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Header
+            writer.writerow(['#', 'Submitted At', 'Participant IP'] + [q['text'] for q in questions])
+
+            for respondent in respondents:
+                row = [
+                    respondent['respondent_number'],
+                    respondent['submitted_at'],
+                    respondent['participant_ip'],
+                ] + [respondent['answers'].get(q['id'], '') for q in questions]
+                writer.writerow(row)
+
+            csv_bytes = output.getvalue().encode('utf-8')
+            encoded = base64.b64encode(csv_bytes).decode('ascii')
+
+            safe_title = ''.join(c if c.isalnum() or c in '-_ ' else '_' for c in survey_title)
+            filename = f"respondents_{safe_title}_{now().split()[0]}.csv"
+
+            return {
+                'success': True,
+                'filename': filename,
+                'content': encoded,
+                'mime': 'text/csv',
+            }
+
+    except Exception as e:
+        frappe.log_error(f"export_survey_respondents error: {str(e)}\n{frappe.get_traceback()}")
+        return {'error': str(e)}
+
+
 def get_response_details():
     """Get detailed response data"""
     try:
