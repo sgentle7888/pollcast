@@ -106,7 +106,7 @@ router.beforeEach((to) => {
 });
 
 // If a lazy chunk fails to load (usually a stale cached index.js pointing at
-// chunk hashes that no longer exist after a redeploy), reload once to fetch fresh files.
+// chunk hashes that no longer exist after a redeploy), purge caches and hard-reload.
 router.onError((err) => {
   const msg = String(err?.message || err);
   if (
@@ -118,7 +118,9 @@ router.onError((err) => {
     try {
       if (!sessionStorage.getItem(key)) {
         sessionStorage.setItem(key, "1");
-        window.location.reload();
+        import("../utils/appVersion.js")
+          .then(({ applyAppUpdate }) => applyAppUpdate())
+          .catch(() => window.location.reload());
       }
     } catch {
       /* storage blocked (private mode / in-app browser) — don't loop */

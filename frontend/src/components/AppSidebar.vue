@@ -80,6 +80,36 @@
 
     <!-- Bottom: User + Collapse toggle + Theme -->
     <div class="sidebar-bottom">
+      <!-- App Update & Cache Purge button -->
+      <button
+        class="sidebar-link update-btn"
+        @click="handleManualUpdate"
+        :title="isUpdating ? 'Updating app and clearing cache...' : 'Update App & Clear Cache'"
+      >
+        <span class="link-icon">
+          <svg
+            :class="{ 'spin-anim': isUpdating }"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </span>
+        <transition name="label-fade">
+          <span v-if="!isCollapsed" class="link-label">
+            {{ isUpdating ? 'Updating...' : 'Update & Refresh' }}
+          </span>
+        </transition>
+      </button>
+
       <!-- Theme toggle -->
       <button class="sidebar-link theme-btn" @click="toggleTheme" :title="'Switch to ' + (isDark ? 'light' : 'dark') + ' mode'">
         <span class="link-icon">
@@ -189,6 +219,21 @@ const toggleTheme = () => {
   const theme = isDark.value ? "dark" : "light";
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem("theme", theme);
+};
+
+import { applyAppUpdate } from "../utils/appVersion.js";
+
+const isUpdating = ref(false);
+
+const handleManualUpdate = async () => {
+  if (isUpdating.value) return;
+  isUpdating.value = true;
+  try {
+    await applyAppUpdate();
+  } catch (err) {
+    isUpdating.value = false;
+    console.error("Manual update failed:", err);
+  }
 };
 
 onMounted(() => {
@@ -420,5 +465,14 @@ onMounted(() => {
 /* Mobile */
 @media (max-width: 768px) {
   .collapse-btn { display: none; }
+}
+
+.spin-anim {
+  animation: sidebarSpin 1s linear infinite;
+}
+
+@keyframes sidebarSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

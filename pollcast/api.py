@@ -17,10 +17,17 @@ from collections import defaultdict
 @frappe.whitelist(allow_guest=True)
 def get_app_version():
     """Return the current frontend build version for browser cache checks."""
+    version = 'unknown'
     try:
-        index_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'index.js')
-        version = str(os.stat(index_path).st_mtime_ns)
-    except (FileNotFoundError, OSError):
+        ver_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'version.json')
+        if os.path.exists(ver_path):
+            with open(ver_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                version = str(data.get('version') or '')
+        if not version or version == 'unknown':
+            index_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'index.js')
+            version = str(os.stat(index_path).st_mtime_ns)
+    except (FileNotFoundError, OSError, Exception):
         version = 'unknown'
 
     return {'version': version}

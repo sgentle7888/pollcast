@@ -1,5 +1,9 @@
 import os
+import json
 import frappe
+
+# Prevent Frappe from caching this template page in Redis or internal website cache
+no_cache = 1
 
 
 def get_context(context):
@@ -34,11 +38,29 @@ def get_context(context):
         )
     context.company_name = company_name or ''
 
+    # Get frontend build version
+    version = 'unknown'
     try:
-        idx_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'index.js')
-        context.asset_version = str(os.stat(idx_path).st_mtime_ns)
+        ver_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'version.json')
+        if os.path.exists(ver_path):
+            with open(ver_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                version = str(data.get('version') or '')
+        if not version or version == 'unknown':
+            idx_path = frappe.get_app_path('pollcast', 'public', 'frontend', 'index.js')
+            version = str(os.stat(idx_path).st_mtime_ns)
     except Exception:
-        context.asset_version = str(int(frappe.utils.now_datetime().timestamp()))
+        version = str(int(frappe.utils.now_datetime().timestamp()))
+
+    context.server_app_version = version
+
+    # If the user or update script passed a reload cache buster, append it to asset_version
+    reload_param = frappe.form_dict.get('_reload') or frappe.form_dict.get('v')
+    if reload_param:
+        context.asset_version = f"{version}_{reload_param}"
+    else:
+        context.asset_version = version
 
     return context
+
 

@@ -1,9 +1,38 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import path from "path";
+import fs from "fs";
+
+const buildVersion = `${Date.now()}`;
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    {
+      name: "generate-version-file",
+      writeBundle() {
+        const outDir = path.resolve(__dirname, "../pollcast/public/frontend");
+        if (!fs.existsSync(outDir)) {
+          fs.mkdirSync(outDir, { recursive: true });
+        }
+        fs.writeFileSync(
+          path.resolve(outDir, "version.json"),
+          JSON.stringify(
+            {
+              version: buildVersion,
+              build_time: new Date().toISOString(),
+            },
+            null,
+            2,
+          ),
+        );
+      },
+    },
+  ],
+
+  define: {
+    __APP_BUILD_VERSION__: JSON.stringify(buildVersion),
+  },
 
   // Base URL for assets served from Frappe
   base: "/assets/pollcast/frontend/",

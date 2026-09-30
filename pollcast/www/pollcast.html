@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <meta name="frappe-csrf-token" content="{{ csrf_token }}" />
     <meta
       name="description"
@@ -54,6 +57,7 @@
       window.frappe_csrf_token = {{ csrf_token | tojson }};
       window.pollcast_company_logo = {{ company_logo | tojson }};
       window.pollcast_company_name = {{ company_name | tojson }};
+      window.pollcast_server_version = {{ server_app_version | tojson }};
     </script>
 
     <!-- Boot watchdog (plain ES5 so it runs even on old browsers).

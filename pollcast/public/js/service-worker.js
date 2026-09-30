@@ -76,17 +76,28 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Bypass service worker cache completely for explicit reloads, cache-busters, and version checks
+  if (
+    url.searchParams.has("_reload") ||
+    url.searchParams.has("_bust") ||
+    url.searchParams.has("_") ||
+    url.pathname.includes("get_app_version")
+  ) {
+    return;
+  }
+
   // Handle different types of requests
   if (isFrontendAsset(request)) {
-    // The Vue entry bundle must be refreshed after a deployment. Use the
-    // network when online, while retaining an offline fallback.
+    // The Vue entry bundle must be refreshed after a deployment. Use network when online.
     event.respondWith(networkFirst(request, STATIC_CACHE));
   } else if (isStaticAsset(request)) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
   } else if (isAPIRequest(request)) {
     event.respondWith(networkFirst(request, DYNAMIC_CACHE));
   } else if (isPageRequest(request)) {
-    event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE));
+    // Single page application shells (/pollcast) must always check network first when online
+    // to ensure dynamic asset versions and CSRF tokens are fresh.
+    event.respondWith(networkFirst(request, DYNAMIC_CACHE));
   } else {
     event.respondWith(networkFirst(request, DYNAMIC_CACHE));
   }
