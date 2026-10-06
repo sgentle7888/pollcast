@@ -3,6 +3,10 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router/index.js";
 import "./assets/main.css";
+import { cleanupReloadParam } from "./utils/appVersion.js";
+
+// Strip any stale `_reload` query param left over from the old update mechanism
+cleanupReloadParam();
 
 // Diagnostics: open the page as  https://<site>/pollcast?debug=1#/surveys/NAME
 // and any JavaScript error is printed on-screen (handy on phones with no console).

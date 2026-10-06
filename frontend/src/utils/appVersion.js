@@ -68,12 +68,31 @@ export async function hasNewAppVersion() {
 }
 
 /**
+ * Strips a stale `_reload` query-string parameter that may have been left in
+ * the URL by a previous (now-fixed or legacy) update flow. Call this once on
+ * app startup so users never see a dirty URL bar after a forced reload.
+ */
+export function cleanupReloadParam() {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("_reload")) {
+      url.searchParams.delete("_reload");
+      // replaceState keeps the hash route intact and leaves no history entry
+      window.history.replaceState(null, "", url.toString());
+    }
+  } catch (_) {}
+}
+
+/**
  * Performs a thorough, multi-layer cache purge and hard reload:
  * 1. Purges all Service Worker CacheStorage caches
  * 2. Unregisters all Service Workers on the origin
  * 3. Removes stale session and reload tracking keys
- * 4. Evicts the browser's HTTP cache using reload fetches
- * 5. Navigates with a cache-busting timestamp while preserving the route hash
+ * 4. Updates the stored version to match the server
+ * 5. Calls location.reload() — clean, no URL pollution
+ *
+ * Because all SW caches are cleared BEFORE the reload, the browser fetches
+ * fresh assets from the network on the very next load.
  */
 export async function applyAppUpdate() {
   console.info("[AppVersion] Applying app update & clearing all caches...");
@@ -113,26 +132,8 @@ export async function applyAppUpdate() {
     }
   } catch (_) {}
 
-  // 5. Invalidate browser HTTP disk/memory cache for entry assets
-  const bust = Date.now();
-  try {
-    await Promise.allSettled([
-      fetch(`/pollcast?_reload=${bust}`, {
-        cache: "reload",
-        credentials: "same-origin",
-      }),
-      fetch(`/assets/pollcast/frontend/index.js?_bust=${bust}`, {
-        cache: "reload",
-      }),
-      fetch(`/assets/pollcast/frontend/index.css?_bust=${bust}`, {
-        cache: "reload",
-      }),
-    ]);
-  } catch (_) {}
-
-  // 6. Hard-navigate to the cache-busting URL while preserving current hash route
-  const targetUrl = new URL(window.location.href);
-  targetUrl.searchParams.set("_reload", String(bust));
-  window.location.replace(targetUrl.toString());
+  // 5. Reload cleanly — caches are already purged so the browser fetches fresh
+  //    assets. No URL query-param pollution; the hash route is preserved.
+  window.location.reload();
 }
 

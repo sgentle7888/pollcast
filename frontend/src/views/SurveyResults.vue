@@ -1225,23 +1225,43 @@ const exportData = async (format) => {
 
 /* ===== Print styles ===== */
 @media print {
-  /* Elements hidden by printPage() / printRespondents() via JS are already
-     display:none at print time — these rules act as a safety net. */
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+
+  /* Navigation chrome hidden by the JS hide/show approach already;
+     these rules are a safety net in case the JS path fails. */
   .results-tab-bar,
-  .header-actions {
+  .header-actions,
+  .breadcrumbs,
+  .btn {
     display: none !important;
   }
 
-  /* Analytics print: keep .results-grid visible, hide respondents */
-  body.print-analytics .respondents-tab {
-    display: none !important;
+  /* Ensure the visible tab content fills the page */
+  .survey-results-view {
+    display: block !important;
   }
 
-  /* Respondents print: hide analytics grid */
-  body.print-respondents .results-grid {
-    display: none !important;
+  /* Charts: canvas must be visible and not overflow */
+  canvas {
+    display: block !important;
+    visibility: visible !important;
+    max-width: 100% !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
+  .chart-card,
+  .card-elevated {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  /* Respondent cards */
   .respondent-card {
     page-break-inside: avoid;
     break-inside: avoid;
@@ -1249,6 +1269,11 @@ const exportData = async (format) => {
     border: 1px solid #d1d5db;
   }
 
-  canvas { max-width: 100%; }
+  /* Ensure text is readable on white paper */
+  body, .survey-results-view {
+    background: #fff !important;
+    color: #1a202c !important;
+  }
+  .text-secondary, .text-muted { color: #4a5568 !important; }
 }
 </style>
