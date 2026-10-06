@@ -68,9 +68,10 @@ export async function hasNewAppVersion() {
 }
 
 /**
- * Strips a stale `_reload` query-string parameter that may have been left in
- * the URL by a previous (now-fixed or legacy) update flow. Call this once on
- * app startup so users never see a dirty URL bar after a forced reload.
+ * Called once on app startup. Strips the `_reload` cache-busting query param
+ * that was added by applyAppUpdate() and also writes the current server version
+ * to localStorage so the very next hasNewAppVersion() check returns false
+ * (preventing the update prompt from immediately re-appearing).
  */
 export function cleanupReloadParam() {
   try {
@@ -79,20 +80,34 @@ export function cleanupReloadParam() {
       url.searchParams.delete("_reload");
       // replaceState keeps the hash route intact and leaves no history entry
       window.history.replaceState(null, "", url.toString());
+
+      // Pre-populate the stored version so hasNewAppVersion() doesn't trigger
+      // again immediately. We intentionally don't await — this is best-effort.
+      fetchAppVersion()
+        .then((v) => { if (v) localStorage.setItem(VERSION_KEY, v); })
+        .catch(() => {});
     }
   } catch (_) {}
 }
 
 /**
- * Performs a thorough, multi-layer cache purge and hard reload:
- * 1. Purges all Service Worker CacheStorage caches
- * 2. Unregisters all Service Workers on the origin
- * 3. Removes stale session and reload tracking keys
- * 4. Updates the stored version to match the server
- * 5. Calls location.reload() — clean, no URL pollution
+ * Performs a thorough, multi-layer cache purge then navigates to a
+ * cache-busting URL so the browser is guaranteed to fetch fresh HTML
+ * and fresh assets from the network.
  *
- * Because all SW caches are cleared BEFORE the reload, the browser fetches
- * fresh assets from the network on the very next load.
+ * Why URL navigation instead of location.reload():
+ *   location.reload() does NOT bypass the browser's own HTTP disk cache.
+ *   Even after the SW cache is cleared, the browser may serve the old
+ *   index.js from its disk cache → old __APP_BUILD_VERSION__ → version
+ *   mismatch → the update prompt immediately reappears.
+ *
+ *   Navigating to /pollcast?_reload=<timestamp> is a different URL, so
+ *   the browser fetches fresh HTML. pollcast.py converts that param into
+ *   a unique asset version (?v=BUILD_TIMESTAMP) → every asset URL is
+ *   unique → browser must fetch all assets from the network.
+ *
+ *   cleanupReloadParam() (called in main.js on startup) strips _reload
+ *   from the URL via history.replaceState so users never see it.
  */
 export async function applyAppUpdate() {
   console.info("[AppVersion] Applying app update & clearing all caches...");
@@ -108,7 +123,8 @@ export async function applyAppUpdate() {
     }
   }
 
-  // 2. Unregister all service workers so stale scripts cannot intercept requests
+  // 2. Unregister all service workers so stale SW scripts cannot intercept
+  //    the fresh-asset requests that follow.
   if ("serviceWorker" in navigator) {
     try {
       const registrations = await navigator.serviceWorker.getRegistrations();
@@ -124,16 +140,17 @@ export async function applyAppUpdate() {
     sessionStorage.removeItem("pollcast_chunk_reload");
   } catch (_) {}
 
-  // 4. Update the stored version in localStorage to match the server
-  try {
-    const serverVersion = await fetchAppVersion();
-    if (serverVersion) {
-      localStorage.setItem(VERSION_KEY, serverVersion);
-    }
-  } catch (_) {}
-
-  // 5. Reload cleanly — caches are already purged so the browser fetches fresh
-  //    assets. No URL query-param pollution; the hash route is preserved.
-  window.location.reload();
+  // 4. Navigate to a cache-busting URL.
+  //    - _reload=<timestamp> makes this a URL the browser has never seen,
+  //      so it MUST go to the network for fresh HTML.
+  //    - pollcast.py appends the timestamp to the asset version so index.js
+  //      and index.css URLs are also brand-new → browser fetches both fresh.
+  //    - The hash (#/current/route) is preserved so the user lands on the
+  //      same page after the reload.
+  //    - cleanupReloadParam() in main.js strips _reload via replaceState
+  //      so the address bar looks clean after the bundle boots.
+  const bust = Date.now();
+  const targetUrl = new URL(window.location.href);
+  targetUrl.searchParams.set("_reload", String(bust));
+  window.location.replace(targetUrl.toString());
 }
-

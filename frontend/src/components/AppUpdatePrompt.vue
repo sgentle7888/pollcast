@@ -66,27 +66,36 @@ const updating = ref(false);
 let intervalId;
 
 async function checkForUpdate() {
-  if (visible.value || document.visibilityState !== "visible") return;
+  // Skip if the prompt is already visible, an update is in progress,
+  // or the tab is not in the foreground.
+  if (visible.value || updating.value || document.visibilityState !== "visible") return;
 
   try {
     if (await hasNewAppVersion()) {
       if (props.autoUpdate) {
+        updating.value = true;
         await applyAppUpdate();
       } else {
         visible.value = true;
       }
     }
   } catch (error) {
+    updating.value = false;
     console.warn("Pollcast update check failed.", error);
   }
 }
 
 async function updateNow() {
+  // Immediately hide the prompt and mark as updating so the UI
+  // feels responsive while caches are being cleared.
+  visible.value = false;
   updating.value = true;
   try {
     await applyAppUpdate();
   } catch (error) {
+    // Navigation failed — let the user try again
     updating.value = false;
+    visible.value = true;
     console.error("Pollcast update failed.", error);
   }
 }
