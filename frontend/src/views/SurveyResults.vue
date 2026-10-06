@@ -540,7 +540,17 @@ const exportRespondentsExcel = async () => {
 };
 
 const printPage = () => {
+  // Hide the respondents tab so only the analytics view is printed
+  const respondentsEl = document.querySelector('.respondents-tab');
+  const tabBar = document.querySelector('.results-tab-bar');
+  const headerActions = document.querySelector('.header-actions');
+  if (respondentsEl) respondentsEl.style.display = 'none';
+  if (tabBar) tabBar.style.display = 'none';
+  if (headerActions) headerActions.style.display = 'none';
   window.print();
+  if (respondentsEl) respondentsEl.style.display = '';
+  if (tabBar) tabBar.style.display = '';
+  if (headerActions) headerActions.style.display = '';
 };
 
 const loading = ref(true);
@@ -883,36 +893,93 @@ onBeforeUnmount(() => {
 });
 
 const exportData = async (format) => {
+  if (!analytics.value) return;
   exporting.value = true;
   try {
-    const result = await frappeCall("pollcast.api.export_analytics", {
-      options: { surveys: true, responses: true },
-      format,
-    });
-    if (result && result.error) {
-      toast?.("Export Failed: " + result.error, "error");
-      return;
-    }
-    if (result && result.content) {
-      // Decode base64 and trigger a browser download
-      const byteChars = atob(result.content);
-      const byteNumbers = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) {
-        byteNumbers[i] = byteChars.charCodeAt(i);
+    // Build CSV entirely client-side from the live analytics data
+    const surveyInfo = analytics.value.survey;
+    const rows = [];
+
+    // ── Section 1: Survey summary ──
+    rows.push(['Survey Analytics Report']);
+    rows.push(['Survey', survey.value?.title || '']);
+    rows.push(['Total Responses', surveyInfo.total_responses ?? '']);
+    rows.push(['Unique Respondents', surveyInfo.unique_respondents ?? '']);
+    rows.push(['Completion Rate (%)', surveyInfo.completion_rate ?? '']);
+    rows.push(['Avg Completion Time (min)', surveyInfo.avg_completion_time ?? '']);
+    rows.push([]);
+
+    // ── Section 2: Per-question breakdown ──
+    rows.push(['Question #', 'Question Type', 'Question Text', 'Total Responses', 'Detail Key', 'Detail Value']);
+
+    const qa = analytics.value.question_analytics || [];
+    qa.forEach((q, idx) => {
+      const qNum = idx + 1;
+      if (q.question_type === 'Rating Scale') {
+        // Average rating summary row
+        rows.push([qNum, q.question_type, q.question_text, q.total_responses, 'Average Rating', q.average_rating ?? '']);
+        // Distribution rows
+        const dist = q.rating_distribution || {};
+        ['5', '4', '3', '2', '1'].forEach(star => {
+          rows.push(['', '', '', '', `${star} Stars`, dist[star] ?? 0]);
+        });
+      } else if (q.question_type === 'Multiple Choice' || q.question_type === 'Checkbox') {
+        const opts = Object.entries(q.option_counts || {});
+        opts.forEach(([opt, count], optIdx) => {
+          const pct = q.total_responses ? Math.round((count / q.total_responses) * 100) : 0;
+          rows.push([
+            optIdx === 0 ? qNum : '',
+            optIdx === 0 ? q.question_type : '',
+            optIdx === 0 ? q.question_text : '',
+            optIdx === 0 ? q.total_responses : '',
+            opt,
+            `${count} (${pct}%)`,
+          ]);
+        });
+        if (!opts.length) rows.push([qNum, q.question_type, q.question_text, q.total_responses, '', '']);
+      } else if (q.question_type === 'Text Input') {
+        const responses = q.text_responses || [];
+        if (responses.length) {
+          responses.forEach((text, rIdx) => {
+            rows.push([
+              rIdx === 0 ? qNum : '',
+              rIdx === 0 ? q.question_type : '',
+              rIdx === 0 ? q.question_text : '',
+              rIdx === 0 ? q.total_responses : '',
+              `Response ${rIdx + 1}`,
+              text,
+            ]);
+          });
+        } else {
+          rows.push([qNum, q.question_type, q.question_text, q.total_responses, '', '']);
+        }
+      } else {
+        rows.push([qNum, q.question_type, q.question_text, q.total_responses, '', '']);
       }
-      const blob = new Blob([byteNumbers], { type: result.mime || "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = result.filename || "pollcast_analytics.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast?.("CSV downloaded successfully!", "success");
-    }
+      rows.push([]); // blank line between questions
+    });
+
+    // Serialise to CSV (RFC 4180)
+    const escape = (val) => {
+      const s = String(val ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
+    };
+    const csv = rows.map(r => r.map(escape).join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (survey.value?.title || 'analytics').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    a.download = `${safeName}_analytics.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast?.('CSV downloaded successfully!', 'success');
   } catch (e) {
-    toast?.("Export Failed: " + e.message, "error");
+    toast?.('Export Failed: ' + e.message, 'error');
   } finally {
     exporting.value = false;
   }
@@ -1156,21 +1223,32 @@ const exportData = async (format) => {
   font-style: italic;
 }
 
-/* ===== Print styles for respondents ===== */
+/* ===== Print styles ===== */
 @media print {
+  /* Elements hidden by printPage() / printRespondents() via JS are already
+     display:none at print time — these rules act as a safety net. */
   .results-tab-bar,
-  .header-actions,
-  .page-header .btn,
-  .results-grid {
+  .header-actions {
     display: none !important;
   }
-  .respondents-tab {
-    display: flex !important;
+
+  /* Analytics print: keep .results-grid visible, hide respondents */
+  body.print-analytics .respondents-tab {
+    display: none !important;
   }
+
+  /* Respondents print: hide analytics grid */
+  body.print-respondents .results-grid {
+    display: none !important;
+  }
+
   .respondent-card {
     page-break-inside: avoid;
+    break-inside: avoid;
     box-shadow: none;
     border: 1px solid #d1d5db;
   }
+
+  canvas { max-width: 100%; }
 }
 </style>
