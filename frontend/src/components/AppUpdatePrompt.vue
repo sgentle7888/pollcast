@@ -33,7 +33,7 @@
         <button
           class="btn btn-ghost btn-sm"
           type="button"
-          @click="visible = false"
+          @click="dismissUpdate"
         >
           Later
         </button>
@@ -52,7 +52,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
-import { applyAppUpdate, hasNewAppVersion } from "../utils/appVersion.js";
+import { applyAppUpdate, hasNewAppVersion, dismissAppVersion } from "../utils/appVersion.js";
 
 const props = defineProps({
   autoUpdate: {
@@ -64,11 +64,28 @@ const props = defineProps({
 const visible = ref(false);
 const updating = ref(false);
 let intervalId;
+let lastCheckTime = 0;
 
-async function checkForUpdate() {
-  // Skip if the prompt is already visible, an update is in progress,
-  // or the tab is not in the foreground.
+function dismissUpdate() {
+  visible.value = false;
+  dismissAppVersion();
+}
+
+async function checkForUpdate(force = false) {
+  // Skip if already showing, updating, or tab not active
   if (visible.value || updating.value || document.visibilityState !== "visible") return;
+
+  // Throttle checks (at most once every 3 minutes unless forced)
+  const now = Date.now();
+  if (!force && now - lastCheckTime < 3 * 60 * 1000) return;
+  lastCheckTime = now;
+
+  // Respect session dismiss or snooze
+  try {
+    if (sessionStorage.getItem("pollcast_update_dismissed")) return;
+    const snoozeUntil = localStorage.getItem("pollcast_snooze_until");
+    if (snoozeUntil && now < Number(snoozeUntil)) return;
+  } catch (_) {}
 
   try {
     if (await hasNewAppVersion()) {
@@ -86,14 +103,12 @@ async function checkForUpdate() {
 }
 
 async function updateNow() {
-  // Immediately hide the prompt and mark as updating so the UI
-  // feels responsive while caches are being cleared.
+  // Immediately hide the prompt and show updating status
   visible.value = false;
   updating.value = true;
   try {
     await applyAppUpdate();
   } catch (error) {
-    // Navigation failed — let the user try again
     updating.value = false;
     visible.value = true;
     console.error("Pollcast update failed.", error);
@@ -101,13 +116,13 @@ async function updateNow() {
 }
 
 onMounted(() => {
-  checkForUpdate();
-  intervalId = window.setInterval(checkForUpdate, 5 * 60 * 1000);
-  document.addEventListener("visibilitychange", checkForUpdate);
+  checkForUpdate(true);
+  intervalId = window.setInterval(() => checkForUpdate(), 10 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => checkForUpdate());
 });
 
 onUnmounted(() => {
   window.clearInterval(intervalId);
-  document.removeEventListener("visibilitychange", checkForUpdate);
+  document.removeEventListener("visibilitychange", () => checkForUpdate());
 });
 </script>
